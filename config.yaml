@@ -2,7 +2,8 @@ physical:
   name: N
 
 model:
-  name: jg
+  name: jcb
+  # name: dpe4
 
 logging:
   wandb:
