@@ -1,9 +1,12 @@
 physical:
   name: N
-    # R: [[0,0,0], [3.0,0,0]]
-    # Z: [3, 1]
+
+model:
+  name: jg
 
 logging:
   wandb:
     entity: szke
     project: DPE
+
+experiment_name: test

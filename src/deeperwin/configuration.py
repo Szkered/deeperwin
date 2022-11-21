@@ -460,7 +460,7 @@ class ModelConfig(ConfigBaseclass):
   """Explicit, additive el-el-cusp correction"""
 
 
-class ModelConfigDeepErwin1(ModelConfig):
+class ModelConfigDeepErwin1(ModelConfig):  # NOTE: Multiple geometry
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["dpe1"] = "dpe1"
   features: Union[InputFeatureConfigDPE1,
@@ -472,9 +472,22 @@ class ModelConfigDeepErwin1(ModelConfig):
   use_el_el_cusp_correction = True
 
 
-class ModelConfigDeepErwin4(ModelConfig):
+class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["dpe4"] = "dpe4"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin4()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
+  jastrow: Optional[JastrowConfig] = None
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfigGeneralizedJastrow(ModelConfig):
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["jg"] = "jg"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
@@ -1220,7 +1233,8 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1] = ModelConfigDeepErwin4()
+               ModelConfigDeepErwin1,
+               ModelConfigGeneralizedJastrow] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()
