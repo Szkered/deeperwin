@@ -13,13 +13,7 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Upgrade pip, install py libs
 RUN pip3 install --upgrade pip
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt --upgrade
-
-ARG NO_CACHE_BELLOW=none
-RUN curl --header "PRIVATE-TOKEN: uVgvyd52V4vyxoYKXPsN" "https://git.insea.io/api/v4/projects/196/repository/files/py%2Frequirements_lock.txt?ref=main" | jq -r '.content' | base64 -d > /tmp/gameai-thirdparty.txt
-RUN pip3 install -r /tmp/gameai-thirdparty.txt --upgrade
-COPY tools /tools
+RUN pip3 install jupyterlab autopep8 isort --upgrade
 
 WORKDIR /app
 
@@ -33,3 +27,4 @@ RUN pip install -e .
 
 RUN pip uninstall jax jaxlib -y
 RUN pip install --upgrade "jax[cuda]==0.3.15" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+RUN pip install protobuf==3.20.*
