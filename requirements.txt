@@ -1,0 +1,3 @@
+jupyterlab
+autopep8
+isort
