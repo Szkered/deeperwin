@@ -241,7 +241,7 @@ class SymmetricFeatures(hk.Module):
     self.mlp_config = mlp_config
     self.n_up = n_up
 
-  def __call__(self, h_one, h_ion, h_el_el, h_el_ion):
+  def __call__(self, h_one, h_ion, h_el_el, h_el_ion, no_2e: bool):
     n_el = h_one.shape[-2]
     features = []
     if self.config.use_h_one:
@@ -254,6 +254,10 @@ class SymmetricFeatures(hk.Module):
         jnp.mean(h_one[..., self.n_up:, :], keepdims=True, axis=-2),
       ]
       features += [jnp.tile(el, [n_el, 1]) for el in g_one]
+
+    if no_2e:
+      features.append(jnp.mean(h_el_ion, axis=-2))
+      return jnp.concatenate(features, axis=-1)
 
     # Average over 2-el-stream
     if self.config.use_average_h_two:
@@ -412,7 +416,7 @@ class FermiNetEmbedding(hk.Module):
     for i in range(self.config.n_iterations - 1):
       h_el_in = SymmetricFeatures(
         self.config, self.mlp_config, self.n_up, name=f"symm_features_{i}"
-      )(h_el, h_ion, h_el_el, h_el_ion)
+      )(h_el, h_ion, h_el_el, h_el_ion, self.config.no_2e)
       h_el = MLP(
         [self.config.n_hidden_one_el[i]],
         self.mlp_config,
@@ -421,6 +425,9 @@ class FermiNetEmbedding(hk.Module):
       )(
         h_el_in
       )
+
+      if self.config.no_2e:
+        continue
 
       if self.config.use_h_two_same_diff:
         h_el_el[0] = MLP(
@@ -460,8 +467,9 @@ class FermiNetEmbedding(hk.Module):
         )
 
     # We have one more 1-electron layer than 2-electron layers: Now apply the last 1-electron layer
-    h_el_in = SymmetricFeatures(self.config, self.mlp_config,
-                                self.n_up)(h_el, h_ion, h_el_el, h_el_ion)
+    h_el_in = SymmetricFeatures(self.config, self.mlp_config, self.n_up)(
+      h_el, h_ion, h_el_el, h_el_ion, self.config.no_2e
+    )
     h_el = MLP(
       [self.config.n_hidden_one_el[i]],
       self.mlp_config,
@@ -681,6 +689,7 @@ class EnvelopeOrbitals(hk.Module):
 
   def __call__(self, dist_el_ion, emb_el):
     # Backflow factor
+    # NOTE: projection to orbitals
     bf_up = MLP(
       self.config.n_hidden + [self.n_dets * self.output_size_up],
       self.mlp_config,
@@ -1031,18 +1040,24 @@ class Wavefunction(hk.Module):
     self.config = config
     self.phys_config = phys_config
 
+  def param_count(self):
+    return sum([np.prod(v.shape) for v in self.params_dict().values()])
+
   def __call__(self, r, R, Z, fixed_params=None):
     fixed_params = fixed_params or {}
     diff_dist, features = self._calculate_features(
       r, R, Z, fixed_params.get('input')
     )
     embeddings = self._calculate_embedding(features)
+    # [batch x n_dets x #alphe/beta x n_el]
     mo_up, mo_dn = self._calculate_orbitals(
       diff_dist, embeddings, fixed_params.get('orbitals')
     )
     log_psi_sqr = evaluate_sum_of_determinants(
       mo_up, mo_dn, self.config.orbitals.use_full_det
     )
+
+    # LOGGER.info(self.param_count())
 
     # Jastrow factor to the total wavefunction
     if self.config.jastrow:
@@ -1052,6 +1067,18 @@ class Wavefunction(hk.Module):
     if self.config.use_el_el_cusp_correction:
       log_psi_sqr += self._el_el_cusp(diff_dist.dist_el_el)
     return log_psi_sqr
+
+  def get_jcb_matrix(self, r, R, Z, fixed_params=None):
+    """Jastrow-Cauchy-Binet matrix"""
+    fixed_params = fixed_params or {}
+    diff_dist, features = self._calculate_features(
+      r, R, Z, fixed_params.get('input')
+    )
+    embeddings = self._calculate_embedding(features)
+
+    mo_up, mo_dn = self._calculate_orbitals(
+      diff_dist, embeddings, fixed_params.get('orbitals')
+    )
 
   def get_slater_matrices(self, r, R, Z, fixed_params=None):
     fixed_params = fixed_params or {}
@@ -1073,13 +1100,13 @@ class Wavefunction(hk.Module):
     return diff_dist, features
 
   @haiku.experimental.name_like("__call__")
-  def _calculate_embedding(self, features):
+  def _calculate_embedding(self, features, name="embedding"):
     if self.config.embedding.name in ["ferminet", "dpe4"]:
       return FermiNetEmbedding(
         self.config.embedding,
         self.config.mlp,
         self.phys_config.n_up,
-        name="embedding"
+        name=f"{name}"
       )(
         features
       )
@@ -1088,7 +1115,7 @@ class Wavefunction(hk.Module):
         self.config.embedding,
         self.config.mlp,
         self.phys_config.n_up,
-        name="embedding_pauli"
+        name=f"{name}_pauli"
       )(
         features
       )
