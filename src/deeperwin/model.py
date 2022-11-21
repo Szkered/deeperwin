@@ -8,6 +8,7 @@ import logging
 from deeperwin.configuration import (
   ModelConfig,
   JastrowConfig,
+  JCBConfig,
   InputFeatureConfig,
   EnvelopeOrbitalsConfig,
   BaselineOrbitalsConfig,
@@ -968,6 +969,74 @@ class JastrowFactor(hk.Module):
     return jastrow
 
 
+class JastrowCauchyBinetMatrix(hk.Module):
+
+  def __init__(
+    self, config: JCBConfig, mlp_config: MLPConfig, n_up, n_dets, name=None
+  ):
+    super().__init__(name=name)
+    self.config = config
+    self.mlp_config = mlp_config
+    self.n_up = n_up
+    self.n_dets = n_dets
+
+  def __call__(self, mo_matrix, jcb_emb: Embeddings):
+    n_el = jcb_emb.el.shape[-2]
+    n_orbs = n_el * self.n_dets  # TODO: support n_orbs directly
+    output_size = n_orbs * n_el * self.config.n_channels
+    if self.config.differentiate_spins:
+      jastrow_up = MLP(
+        self.config.n_hidden + [output_size],
+        self.mlp_config,
+        linear_out=True,
+        output_bias=False,
+        name="up"
+      )(
+        jcb_emb.el[..., :self.n_up, :]
+      )
+      jastrow_dn = MLP(
+        self.config.n_hidden + [output_size],
+        self.mlp_config,
+        linear_out=True,
+        output_bias=False,
+        name="dn"
+      )(
+        jcb_emb.el[..., self.n_up:, :]
+      )
+
+      jastrow = jnp.sum(jastrow_up, axis=-2) + jnp.sum(jastrow_dn, axis=-2)
+    else:
+      jastrow = MLP(
+        self.config.n_hidden + [output_size],
+        linear_out=True,
+        output_bias=False,
+        name="mlp"
+      )(
+        jcb_emb.el
+      )
+      jastrow = jnp.sum(jastrow, axis=-2)
+
+    # mo_matrix [batch x n_dets x n_el(perm. inv.) x n_el]
+    # transpose [batch x n_dets x n_el x n_el(perm. inv.)]
+    mo_matrix = jnp.swapaxes(mo_matrix, -1, -2)
+    mo_matrix = mo_matrix.reshape(mo_matrix.shape[:-3] + (n_orbs, n_el))
+
+    # [n_channels~ndet x n_el(perm. inv.) x n_orbs]
+    jcb_m = jastrow.reshape(
+      jastrow.shape[:-1] + (self.config.n_channels, n_el, n_orbs)
+    )
+
+    # vmapped [n_el(perm. inv.) x n_orbs] @ [n_orbs x n_el]
+    # mixed_mo [batch x n_channels~ndet x n_el(perm. inv.) x n_el]
+    mixed_mo = jax.vmap(
+      lambda w, o: w @ o, in_axes=(-3, None), out_axes=-3
+    )(jcb_m, mo_matrix)
+
+    mo_up, mo_down = jnp.split(mixed_mo, [self.n_up], axis=-2)
+
+    return mo_up, mo_down
+
+
 def evaluate_sum_of_determinants(mo_matrix_up, mo_matrix_dn, use_full_det):
   LOG_EPSILON = 1e-8
 
@@ -1053,11 +1122,17 @@ class Wavefunction(hk.Module):
     mo_up, mo_dn = self._calculate_orbitals(
       diff_dist, embeddings, fixed_params.get('orbitals')
     )
+
+    if self.config.jcb:
+      mo_up, mo_dn = self._calculate_jcb_product(
+        mo_up, mo_dn, features, self.config.orbitals.use_full_det
+      )
+
     log_psi_sqr = evaluate_sum_of_determinants(
       mo_up, mo_dn, self.config.orbitals.use_full_det
     )
 
-    # LOGGER.info(self.param_count())
+    LOGGER.info(self.param_count())
 
     # Jastrow factor to the total wavefunction
     if self.config.jastrow:
@@ -1068,17 +1143,18 @@ class Wavefunction(hk.Module):
       log_psi_sqr += self._el_el_cusp(diff_dist.dist_el_el)
     return log_psi_sqr
 
-  def get_jcb_matrix(self, r, R, Z, fixed_params=None):
-    """Jastrow-Cauchy-Binet matrix"""
-    fixed_params = fixed_params or {}
-    diff_dist, features = self._calculate_features(
-      r, R, Z, fixed_params.get('input')
-    )
-    embeddings = self._calculate_embedding(features)
-
-    mo_up, mo_dn = self._calculate_orbitals(
-      diff_dist, embeddings, fixed_params.get('orbitals')
-    )
+  @haiku.experimental.name_like("__call__")
+  def _calculate_jcb_product(
+    self, mo_matrix_up, mo_matrix_dn, features, use_full_det
+  ):
+    """Project symmetric el embedding to Jastrow-Cauchy-Binet matrix and apply to orbitals"""
+    assert use_full_det == True
+    mo_matrix = jnp.concatenate([mo_matrix_up, mo_matrix_dn], axis=-2)
+    jcb_emb = self._calculate_embedding(features, jcb=True)
+    return JastrowCauchyBinetMatrix(
+      self.config.jcb, self.config.mlp, self.phys_config.n_up,
+      self.config.orbitals.n_determinants
+    )(mo_matrix, jcb_emb)
 
   def get_slater_matrices(self, r, R, Z, fixed_params=None):
     fixed_params = fixed_params or {}
@@ -1100,22 +1176,18 @@ class Wavefunction(hk.Module):
     return diff_dist, features
 
   @haiku.experimental.name_like("__call__")
-  def _calculate_embedding(self, features, name="embedding"):
+  def _calculate_embedding(self, features, jcb: bool = False):
+    name = "embedding" if not jcb else "jcb"
+    config = self.config.embedding if not jcb else self.config.jcb.emb
     if self.config.embedding.name in ["ferminet", "dpe4"]:
       return FermiNetEmbedding(
-        self.config.embedding,
-        self.config.mlp,
-        self.phys_config.n_up,
-        name=f"{name}"
+        config, self.config.mlp, self.phys_config.n_up, name=f"{name}"
       )(
         features
       )
     elif self.config.embedding.name in ["dpe1"]:
       return PauliNetEmbedding(
-        self.config.embedding,
-        self.config.mlp,
-        self.phys_config.n_up,
-        name=f"{name}_pauli"
+        config, self.config.mlp, self.phys_config.n_up, name=f"{name}_pauli"
       )(
         features
       )

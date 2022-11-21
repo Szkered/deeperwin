@@ -197,7 +197,7 @@ class EmbeddingConfigDeepErwin4(EmbeddingConfigFermiNet):
   use_linear_out = False
 
 
-class EmbeddingConfigDESmall(EmbeddingConfigFermiNet):
+class EmbeddingConfigDESmallNo2e(EmbeddingConfigFermiNet):
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["dpe4"] = "dpe4"
   n_iterations: int = 4
@@ -432,6 +432,13 @@ class OrbitalsConfigFermiNet(OrbitalsConfig):
   use_full_det = True
 
 
+class OrbitalsConfigJCB(OrbitalsConfig):
+  baseline_orbitals: Optional[BaselineOrbitalsConfig] = None
+  envelope_orbitals: Optional[EnvelopeOrbitalsConfig] = EnvelopeOrbitalsConfig()
+  n_determinants = 16
+  use_full_det = True
+
+
 class OrbitalsConfigDPE1(OrbitalsConfig):
   baseline_orbitals: Optional[BaselineOrbitalsConfig] = BaselineOrbitalsConfig()
   envelope_orbitals: Optional[EnvelopeOrbitalsConfig] = None
@@ -447,6 +454,24 @@ class JastrowConfig(ConfigBaseclass):
 
   differentiate_spins: bool = False
   """Use separate functions for J(spin_up) and J(spin_down)"""
+
+
+class JCBConfig(ConfigBaseclass):
+  use: bool = True
+
+  n_hidden: List[int] = [256, 256]
+  """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
+
+  differentiate_spins: bool = False
+  """Use separate functions for J(spin_up) and J(spin_down)"""
+
+  n_channels: int = 1
+  """Number of JCB matrix to output"""
+
+  emb: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+             EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+             None] = EmbeddingConfigDeepErwin4()
+  """Config-options for mapping symmetrized input features to JCB matrix"""
 
 
 class MLPConfig(ConfigBaseclass):
@@ -467,7 +492,7 @@ class ModelConfig(ConfigBaseclass):
   """Config-options for mapping raw inputs (r,R,Z) to some symmetrized input features"""
 
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                   EmbeddingConfigDeepErwin1, None]
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e, None]
   """Config-options for mapping symmetrized input features to high-dimensional embeddings of electrons"""
 
   orbitals: OrbitalsConfig
@@ -478,6 +503,9 @@ class ModelConfig(ConfigBaseclass):
 
   jastrow: Optional[JastrowConfig]
   """Enable the jastrow-factor, i.e. multiple the total wavefunction by the output of a global neural network"""
+
+  jcb: Optional[JCBConfig]
+  """Enable the Jastrow-Cauchy-Binet matrix"""
 
   nonlinear_coupling: Optional[int]  # TODO: placeholder
   """Enable the nonlinear coupling of determinants"""
@@ -511,16 +539,17 @@ class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   use_el_el_cusp_correction: bool = False
 
 
-class ModelConfigGeneralizedJastrow(ModelConfig):
+class ModelConfigJCB(ModelConfig):
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["jg"] = "jg"
+  name: Literal["jcb"] = "jcb"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                   EmbeddingConfigDeepErwin1,
-                   None] = EmbeddingConfigDeepErwin4()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
+  jcb: Optional[JCBConfig] = JCBConfig()
   use_el_el_cusp_correction: bool = False
 
 
@@ -1259,8 +1288,7 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1,
-               ModelConfigGeneralizedJastrow] = ModelConfigDeepErwin4()
+               ModelConfigDeepErwin1, ModelConfigJCB] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()
