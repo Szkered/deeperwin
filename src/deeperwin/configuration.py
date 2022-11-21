@@ -147,6 +147,9 @@ class EmbeddingConfigFermiNet(ConfigBaseclass):
   use_w_mapping: bool = False
   """Apply neural network for inter-particle features to further process before computing SchNet convolution"""
 
+  no_2e: bool = False
+  """If true, turn off the message passing part in the embedding network"""
+
   @validator("n_iterations", always=True)
   def _set_n_iterations(cls, n, values):
     if n is None:
@@ -192,6 +195,26 @@ class EmbeddingConfigDeepErwin4(EmbeddingConfigFermiNet):
   use_average_h_two = False
   use_h_one = True
   use_linear_out = False
+
+
+class EmbeddingConfigDESmall(EmbeddingConfigFermiNet):
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["dpe4"] = "dpe4"
+  n_iterations: int = 4
+  n_hidden_one_el: Union[List[int], int] = 64
+  n_hidden_two_el: Union[List[int], int] = 32
+  n_hidden_el_ions: Union[List[int], int] = 32
+  use_el_ion_stream: bool = True
+  use_h_two_same_diff = True
+  emb_dim = 32
+  use_w_mapping = True
+  use_schnet_features = True
+  sum_schnet_features = False
+  use_average_h_one = True
+  use_average_h_two = False
+  use_h_one = True
+  use_linear_out = False
+  no_2e = True
 
 
 class EmbeddingConfigDeepErwin1(ConfigBaseclass):
@@ -455,6 +478,9 @@ class ModelConfig(ConfigBaseclass):
 
   jastrow: Optional[JastrowConfig]
   """Enable the jastrow-factor, i.e. multiple the total wavefunction by the output of a global neural network"""
+
+  nonlinear_coupling: Optional[int]  # TODO: placeholder
+  """Enable the nonlinear coupling of determinants"""
 
   use_el_el_cusp_correction: bool
   """Explicit, additive el-el-cusp correction"""
