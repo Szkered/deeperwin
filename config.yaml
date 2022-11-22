@@ -5,8 +5,9 @@ physical:
 #   use: False
 
 model:
+  name: 1e
   # name: jcb
-  name: nc
+  # name: nc
   # name: jcbnc
   # name: dpe4
 
