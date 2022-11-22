@@ -21,6 +21,11 @@ model:
   # orbitals:
   #   n_determinants: 32
 
+# optimization:
+#   kinetic: hutchinson
+#   fd_eps: 1e-4
+
+
 logging:
   wandb:
     entity: szke

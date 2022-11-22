@@ -63,7 +63,7 @@ def _clip_energies(E, clipping_state, clipping_config: ClippingConfig):
 
 
 def build_value_and_grad_func(
-  log_psi_sqr_func, clipping_config: ClippingConfig
+  log_psi_sqr_func, clipping_config: ClippingConfig, kinetic: str, fd_eps: float
 ):
   """
     Returns a callable that computes the gradient of the mean local energy for a given set of MCMC walkers with respect to the model defined by `log_psi_func`.
@@ -79,7 +79,7 @@ def build_value_and_grad_func(
   @jax.custom_jvp
   def total_energy(params, state, batch):
     clipping_state = state
-    E_loc = get_local_energy(log_psi_sqr_func, params, *batch)
+    E_loc = get_local_energy(log_psi_sqr_func, params, kinetic, fd_eps, *batch)
     E_mean = pmean(jnp.nanmean(E_loc))
     E_var = pmean(jnp.nanmean((E_loc - E_mean)**2))
 
@@ -180,7 +180,7 @@ def optimize_wavefunction(
 
   # Initialize loss and optimizer
   value_and_grad_func = build_value_and_grad_func(
-    log_psi_squared, opt_config.clipping
+    log_psi_squared, opt_config.clipping, opt_config.kinetic, opt_config.fd_eps
   )
   optimizer = build_optimizer(
     value_and_grad_func, opt_config.optimizer, True, True

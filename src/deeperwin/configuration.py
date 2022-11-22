@@ -863,6 +863,12 @@ class OptimizationConfig(ConfigBaseclass):
                    BFGSOptimizerConfig] = OptimizerConfigKFAC()
   """Which optimizer to use and its corresponding sub-options"""
 
+  kinetic: Literal["baseline", "fd", "hutchinson"] = "baseline"
+  """the method used for computing the laplacian term in kinetic"""
+
+  fd_eps: float = 1e-4
+  """eps used when using finite difference to compute the laplacian term in kinetic"""
+
   n_epochs: int = 60_000
   """Number of epochs for wavefunction optimization"""
 
