@@ -39,7 +39,7 @@ def get_potential_energy(r, R, Z):
 
 
 def get_kinetic_energy(
-  log_psi_squared, trainable_params, kinetic, fd_eps, r, R, Z, fixed_params
+  log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
 ):
   """This code here is strongly inspired by the implementation of FermiNet (Copyright 2020 DeepMind Technologies Limited.)
 
@@ -86,7 +86,7 @@ def get_kinetic_energy(
 
   elif kinetic == "fd":
     # TODO: do we need to tune the eps?
-    eps = fd_eps * jnp.mean(jnp.abs(r))  # scale by data scale
+    eps = fixed_params["fd_eps"] * jnp.mean(jnp.abs(r))  # scale by data scale
     v = v / jnp.linalg.norm(v, axis=0, keepdims=True) * eps  # normalize
 
     grad_P, grad_N = grad_psi_func(r + v), grad_psi_func(r - v)
@@ -102,14 +102,12 @@ def get_kinetic_energy(
   return k_first, k_second
 
 
-@functools.partial(
-  jax.vmap, in_axes=(None, None, None, None, 0, None, None, None)
-)
+@functools.partial(jax.vmap, in_axes=(None, None, None, 0, None, None, None))
 def get_local_energy(
-  log_psi_squared, trainable_params, kinetic, fd_eps, r, R, Z, fixed_params
+  log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
 ):
   E_kin_first, E_kin_second = get_kinetic_energy(
-    log_psi_squared, trainable_params, kinetic, fd_eps, r, R, Z, fixed_params
+    log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
   )
 
   E_kin = -0.5 * (E_kin_first + E_kin_second)
