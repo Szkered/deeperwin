@@ -869,6 +869,9 @@ class OptimizationConfig(ConfigBaseclass):
   fd_eps: float = 1e-4
   """eps used when using finite difference to compute the laplacian term in kinetic"""
 
+  adapt_var_ema_alpha: float = 0.0
+  """whether to adaptive tune var by tuning the ratio between first and second derivative"""
+
   n_epochs: int = 60_000
   """Number of epochs for wavefunction optimization"""
 
