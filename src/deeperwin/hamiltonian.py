@@ -39,31 +39,78 @@ def get_potential_energy(r, R, Z):
 
 
 def get_kinetic_energy(
-  log_psi_squared, trainable_params, r, R, Z, fixed_params
+  log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
 ):
-  """This code here is strongly inspired by the implementation of FermiNet (Copyright 2020 DeepMind Technologies Limited.)"""
+  """This code here is strongly inspired by the implementation of FermiNet (Copyright 2020 DeepMind Technologies Limited.)
+
+  NOTE: different from ferminet, the function is log psi SQUARED,
+  so we need to mutiply with prefactor ( 1/4, 1/2 )
+
+  Args:
+      kinetic: the method used for calculating the laplacian
+  """
   n_coords = r.shape[-2] * r.shape[-1]
   eye = jnp.eye(n_coords)
   grad_psi_func = lambda r: jax.grad(
     log_psi_squared, argnums=1
   )(trainable_params, r.reshape([-1, 3]), R, Z, fixed_params).flatten()
 
-  grad_value, jvp_func = jax.linearize(grad_psi_func, r.flatten())
+  # random projection vector
+  if kinetic == "baseline":
+    v = None
+  else:
+    seed = 1e8 * jnp.mean(jnp.abs(r))  # TODO: check this
+    v = jax.random.normal(
+      key=jax.random.PRNGKey(seed.astype(int)), shape=r.shape
+    )
 
-  def _loop_body(i, accumulator):
-    return accumulator + jvp_func(eye[i])[i]
+  if kinetic == "baseline":
 
-  laplacian = 0.25 * jnp.sum(
-    grad_value**2
-  ) + 0.5 * jax.lax.fori_loop(0, n_coords, _loop_body, 0.0)
-  return -0.5 * laplacian
+    def _loop_body(i, accumulator):
+      return accumulator + jvp_func(eye[i])[i]
+
+    grad_value, jvp_func = jax.linearize(grad_psi_func, r.flatten())
+    k_first = jnp.sum(grad_value**2)
+    k_second = jax.lax.fori_loop(0, n_coords, _loop_body, 0.0)
+
+  elif kinetic == "hutchinson":
+
+    v = v.flatten()
+
+    def _loop_body(i, accumulator):
+      return accumulator + jvp_func(eye[i])[i] * v[i]**2
+
+    grad_value, jvp_func = jax.linearize(grad_psi_func, r.flatten())
+    k_first = jnp.sum(grad_value**2)
+    k_second = jax.lax.fori_loop(0, n_coords, _loop_body, 0.0)
+
+  elif kinetic == "fd":
+    # TODO: do we need to tune the eps?
+    eps = fixed_params["fd_eps"] * jnp.mean(jnp.abs(r))  # scale by data scale
+    v = v / jnp.linalg.norm(v, axis=0, keepdims=True) * eps  # normalize
+
+    grad_P, grad_N = grad_psi_func(r + v), grad_psi_func(r - v)
+
+    k_first = jnp.sum(jnp.square(grad_P + grad_N), axis=0) / 4
+    k_second = jnp.dot(v.flatten(), grad_P - grad_N) * n_coords / (2 * eps**2)
+
+  else:
+    raise NotImplementedError(kinetic)
+
+  k_first *= 0.25
+  k_second *= 0.5
+  return k_first, k_second
 
 
-@functools.partial(jax.vmap, in_axes=(None, None, 0, None, None, None))
-def get_local_energy(log_psi_squared, trainable_params, r, R, Z, fixed_params):
-  E_kin = get_kinetic_energy(
-    log_psi_squared, trainable_params, r, R, Z, fixed_params
+@functools.partial(jax.vmap, in_axes=(None, None, None, 0, None, None, None))
+def get_local_energy(
+  log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
+):
+  E_kin_first, E_kin_second = get_kinetic_energy(
+    log_psi_squared, trainable_params, kinetic, r, R, Z, fixed_params
   )
+
+  E_kin = -0.5 * (E_kin_first + E_kin_second)
   E_pot = get_potential_energy(r, R, Z)
   return E_kin + E_pot
 

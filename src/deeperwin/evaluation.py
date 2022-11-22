@@ -43,8 +43,10 @@ def evaluate_wavefunction(
   def get_observables(params, fixed_params, mcmc_state: MCMCState):
     metrics = dict()
     if config.calculate_energies:
+      # NOTE: for evaluation, always use the baseline method
       energies = get_local_energy(
-        log_psi_sqr, params, *mcmc_state.build_batch(fixed_params)
+        log_psi_sqr, params, "baseline", 0.0,
+        *mcmc_state.build_batch(fixed_params)
       )
       metrics['E_mean'] = pmean(jnp.nanmean(energies))
       metrics['E_var'] = pmean(jnp.nanmean(energies - metrics['E_mean'])**2)
