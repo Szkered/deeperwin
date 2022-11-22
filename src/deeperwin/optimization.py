@@ -84,9 +84,8 @@ def build_value_and_grad_func(
       log_psi_sqr_func, params, kinetic, *batch
     )
 
-    r, _, _, fixed_params = batch
-
     if adapt_var_ema_alpha and len(r.shape) > 2:  # only calculate when batching
+      r, _, _, fixed_params = batch
       batch_size = r.shape[0]
 
       f_s = jnp.concatenate(
@@ -209,11 +208,13 @@ def optimize_wavefunction(
   clipping_state = initial_clipping_state or init_clipping_state(
   )  # do not clip at first epoch, then adjust
 
-  fixed_params["fd_eps"] = jnp.array(opt_config.fd_eps)
-  fixed_params["ema_var_ratio"] = jnp.array(1.0)
-  fixed_params["adapt_var_ema_alpha"] = jnp.array(
-    opt_config.adapt_var_ema_alpha
-  )
+  if opt_config.kinetic == "fd":
+    fixed_params["fd_eps"] = jnp.array(opt_config.fd_eps)
+  if opt_config.adapt_var_ema_alpha:
+    fixed_params["ema_var_ratio"] = jnp.array(1.0)
+    fixed_params["adapt_var_ema_alpha"] = jnp.array(
+      opt_config.adapt_var_ema_alpha
+    )
 
   params, fixed_params, initial_opt_state, clipping_state, rng_opt = replicate_across_devices(
     (params, fixed_params, initial_opt_state, clipping_state, rng_opt)
