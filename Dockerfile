@@ -20,9 +20,10 @@ WORKDIR /app
 RUN pip install -U wandb
 RUN wandb login 20d729129686c9a3f766d60185d416b0acb7cef8
 
-RUN git clone https://github.com/Szkered/deeperwin.git
-WORKDIR /app/deeperwin
-RUN git checkout -b JG origin/JG
+COPY . .
+# RUN git clone https://github.com/Szkered/deeperwin.git
+# WORKDIR /app/deeperwin
+# RUN git checkout -b JG origin/JG
 RUN pip install -e .
 
 RUN pip uninstall jax jaxlib -y
