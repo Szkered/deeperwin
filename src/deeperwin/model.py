@@ -9,6 +9,7 @@ from deeperwin.configuration import (
   ModelConfig,
   JastrowConfig,
   JCBConfig,
+  NCConfig,
   InputFeatureConfig,
   EnvelopeOrbitalsConfig,
   BaselineOrbitalsConfig,
@@ -26,6 +27,7 @@ from collections import namedtuple
 from kfac_jax import register_scale_and_shift
 
 from jax import numpy as jnp
+from jax import lax
 
 DiffAndDistances = namedtuple(
   "DiffAndDistances", "diff_el_el, dist_el_el, diff_el_ion, dist_el_ion"
@@ -46,6 +48,38 @@ def _b_init(mlp_config: MLPConfig):
   return hk.initializers.TruncatedNormal(mlp_config.init_bias_scale)
 
 
+class SoftmaxLinear(hk.Linear):
+
+  def __call__(
+    self,
+    inputs: jnp.ndarray,
+    *,
+    precision: Optional[lax.Precision] = None,
+  ) -> jnp.ndarray:
+    """Computes a linear transform of the input."""
+    if not inputs.shape:
+      raise ValueError("Input must not be scalar.")
+
+    input_size = self.input_size = inputs.shape[-1]
+    output_size = self.output_size
+    dtype = inputs.dtype
+
+    w_init = self.w_init
+    if w_init is None:
+      stddev = 1. / np.sqrt(self.input_size)
+      w_init = hk.initializers.TruncatedNormal(stddev=stddev)
+    w = hk.get_parameter("w", [input_size, output_size], dtype, init=w_init)
+
+    out = jnp.dot(inputs, jax.nn.softmax(w), precision=precision)
+
+    if self.with_bias:
+      b = hk.get_parameter("b", [self.output_size], dtype, init=self.b_init)
+      b = jnp.broadcast_to(b, out.shape)
+      out = out + b
+
+    return out
+
+
 class MLP(hk.Module):
 
   def __init__(
@@ -54,7 +88,9 @@ class MLP(hk.Module):
     config: MLPConfig = None,
     output_bias: bool = True,
     linear_out: bool = False,
-    residual=False,
+    residual: bool = False,
+    softmax_w: bool = False,
+    activation: Optional[str] = None,
     name: Optional[str] = None,
   ):
     super().__init__(name=name)
@@ -63,9 +99,11 @@ class MLP(hk.Module):
     self.output_bias = output_bias
     self.linear_out = linear_out
     self.residual = residual
+    self.softmax_w = softmax_w
+
     self.activation = dict(
       tanh=jnp.tanh, silu=jax.nn.silu, elu=jax.nn.elu, relu=jax.nn.relu
-    )[config.activation]
+    )[activation or config.activation]
     self.init_w = hk.initializers.VarianceScaling(
       1.0, config.init_weights_scale, config.init_weights_distribution
     )
@@ -74,7 +112,8 @@ class MLP(hk.Module):
   def __call__(self, x):
     for i, output_size in enumerate(self.output_sizes):
       is_output_layer = i == (len(self.output_sizes) - 1)
-      y = hk.Linear(
+      linear_mod = SoftmaxLinear if self.softmax_w else hk.Linear
+      y = linear_mod(
         output_size, self.output_bias or not is_output_layer, self.init_w,
         self.init_b, f"linear_{i}"
       )(
@@ -1037,9 +1076,43 @@ class JastrowCauchyBinetMatrix(hk.Module):
     return mo_up, mo_down
 
 
-def evaluate_sum_of_determinants(mo_matrix_up, mo_matrix_dn, use_full_det):
-  LOG_EPSILON = 1e-8
+class NonlinearCoupling(hk.Module):
 
+  def __init__(self, config: NCConfig, mlp_config: MLPConfig, name=None):
+    super().__init__(name=name)
+    self.config = config
+    self.mlp_config = mlp_config
+
+  def __call__(self, sign_total, log_total):
+    LOG_EPSILON = 1e-8
+
+    # first convert from log domain back to the original domain
+    psi = sign_total * jnp.exp(log_total)
+
+    # [batch x n_dets] -> [batch x 1]
+    psi_coupled = MLP(
+      self.config.n_hidden,
+      self.mlp_config,
+      linear_out=True,
+      output_bias=False,
+      residual=self.config.use_res,
+      softmax_w=self.config.softmax_w,
+      activation=self.config.activation,
+      name="nonlinear_coupling"
+    )(
+      psi
+    )
+
+    # convert back to log domain
+    sign_coupled = jnp.sign(psi_coupled)
+    log_coupled = jnp.log(jnp.abs(psi_coupled) + LOG_EPSILON)
+
+    log_psi_sqr = evaluate_log_sum_det(sign_coupled, log_coupled)
+
+    return log_psi_sqr
+
+
+def evaluate_dets(mo_matrix_up, mo_matrix_dn, use_full_det):
   if use_full_det:
     mo_matrix = jnp.concatenate([mo_matrix_up, mo_matrix_dn], axis=-2)
     sign_total, log_total = jnp.linalg.slogdet(mo_matrix)
@@ -1048,12 +1121,25 @@ def evaluate_sum_of_determinants(mo_matrix_up, mo_matrix_dn, use_full_det):
     sign_dn, log_dn = jnp.linalg.slogdet(mo_matrix_dn)
     log_total = log_up + log_dn
     sign_total = sign_up * sign_dn
+  return sign_total, log_total
+
+
+def evaluate_log_sum_det(sign_total, log_total):
+  LOG_EPSILON = 1e-8
   log_shift = jnp.max(log_total, axis=-1, keepdims=True)
   psi = jnp.exp(log_total - log_shift) * sign_total
   psi = jnp.sum(psi, axis=-1)  # sum over determinants
   log_psi_sqr = 2 * (
     jnp.log(jnp.abs(psi) + LOG_EPSILON) + jnp.squeeze(log_shift, -1)
   )
+  return log_psi_sqr
+
+
+def evaluate_sum_of_determinants(mo_matrix_up, mo_matrix_dn, use_full_det):
+  sign_total, log_total = evaluate_dets(
+    mo_matrix_up, mo_matrix_dn, use_full_det
+  )
+  log_psi_sqr = evaluate_log_sum_det(sign_total, log_total)
   return log_psi_sqr
 
 
@@ -1128,11 +1214,9 @@ class Wavefunction(hk.Module):
         mo_up, mo_dn, features, self.config.orbitals.use_full_det
       )
 
-    log_psi_sqr = evaluate_sum_of_determinants(
-      mo_up, mo_dn, self.config.orbitals.use_full_det
-    )
+    log_psi_sqr = self._calculate_log_psi_sqr(mo_up, mo_dn)
 
-    LOGGER.info(self.param_count())
+    # LOGGER.info(self.param_count())
 
     # Jastrow factor to the total wavefunction
     if self.config.jastrow:
@@ -1141,6 +1225,24 @@ class Wavefunction(hk.Module):
     # Electron-electron-cusps
     if self.config.use_el_el_cusp_correction:
       log_psi_sqr += self._el_el_cusp(diff_dist.dist_el_el)
+    return log_psi_sqr
+
+  @haiku.experimental.name_like("__call__")
+  def _calculate_log_psi_sqr(self, mo_matrix_up, mo_matrix_dn):
+    sign_total, log_total = evaluate_dets(
+      mo_matrix_up, mo_matrix_dn, self.config.orbitals.use_full_det
+    )
+
+    if self.config.nonlinear_coupling:
+      assert self.config.orbitals.use_full_det
+      log_psi_sqr = NonlinearCoupling(
+        self.config.nonlinear_coupling, self.config.mlp
+      )(sign_total, log_total)
+
+    else:
+
+      log_psi_sqr = evaluate_log_sum_det(sign_total, log_total)
+
     return log_psi_sqr
 
   @haiku.experimental.name_like("__call__")
