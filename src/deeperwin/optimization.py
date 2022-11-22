@@ -63,7 +63,8 @@ def _clip_energies(E, clipping_state, clipping_config: ClippingConfig):
 
 
 def build_value_and_grad_func(
-  log_psi_sqr_func, clipping_config: ClippingConfig, kinetic: str
+  log_psi_sqr_func, clipping_config: ClippingConfig, kinetic: str,
+  adapt_var_ema_alpha: float
 ):
   """
     Returns a callable that computes the gradient of the mean local energy for a given set of MCMC walkers with respect to the model defined by `log_psi_func`.
@@ -79,7 +80,44 @@ def build_value_and_grad_func(
   @jax.custom_jvp
   def total_energy(params, state, batch):
     clipping_state = state
-    E_loc = get_local_energy(log_psi_sqr_func, params, kinetic, *batch)
+    E_kin_first, E_kin_second, E_pot = get_local_energy(
+      log_psi_sqr_func, params, kinetic, *batch
+    )
+
+    r, _, _, fixed_params = batch
+
+    if adapt_var_ema_alpha and len(r.shape) > 2:  # only calculate when batching
+      batch_size = r.shape[0]
+
+      f_s = jnp.concatenate(
+        [
+          jnp.reshape(E_kin_second, (1, batch_size)),
+          jnp.reshape(E_kin_first, (1, batch_size)),
+          jnp.reshape(E_pot, (1, batch_size))
+        ]
+      )
+
+      cov_all = jnp.cov(f_s)
+      qudra_a = cov_all[0][0] + 4 * cov_all[1][1] + 4 * cov_all[0][1]
+      qudra_minus_b = (
+        2 * cov_all[1][1] + cov_all[0][1] + 2 * cov_all[0][2] +
+        4 * cov_all[1][2]
+      )
+      ratio = qudra_minus_b / qudra_a
+
+      fixed_params[
+        "ema_var_ratio"] = fixed_params["adapt_var_ema_alpha"] * fixed_params[
+          "ema_var_ratio"] + (1. - fixed_params["adapt_var_ema_alpha"]) * ratio
+
+      E_kin = -0.5 * (
+        (2 * fixed_params["ema_var_ratio"] - 1) * E_kin_first +
+        fixed_params["ema_var_ratio"] * E_kin_second
+      )
+    else:
+      E_kin = -0.5 * (E_kin_first + E_kin_second)
+
+    E_loc = E_kin + E_pot
+
     E_mean = pmean(jnp.nanmean(E_loc))
     E_var = pmean(jnp.nanmean((E_loc - E_mean)**2))
 
@@ -95,6 +133,10 @@ def build_value_and_grad_func(
       E_var_clipped=E_var_clipped,
       E_loc_clipped=E_loc_clipped
     )
+
+    if adapt_var_ema_alpha and len(r.shape) > 2:  # only calculate when batching
+      aux["ema_var_ratio"] = fixed_params["ema_var_ratio"]
+
     loss = E_mean_clipped
     return loss, (clipping_state, aux)
 
@@ -168,6 +210,10 @@ def optimize_wavefunction(
   )  # do not clip at first epoch, then adjust
 
   fixed_params["fd_eps"] = jnp.array(opt_config.fd_eps)
+  fixed_params["ema_var_ratio"] = jnp.array(1.0)
+  fixed_params["adapt_var_ema_alpha"] = jnp.array(
+    opt_config.adapt_var_ema_alpha
+  )
 
   params, fixed_params, initial_opt_state, clipping_state, rng_opt = replicate_across_devices(
     (params, fixed_params, initial_opt_state, clipping_state, rng_opt)
@@ -182,7 +228,8 @@ def optimize_wavefunction(
 
   # Initialize loss and optimizer
   value_and_grad_func = build_value_and_grad_func(
-    log_psi_squared, opt_config.clipping, opt_config.kinetic
+    log_psi_squared, opt_config.clipping, opt_config.kinetic,
+    opt_config.adapt_var_ema_alpha
   )
   optimizer = build_optimizer(
     value_and_grad_func, opt_config.optimizer, True, True
@@ -223,6 +270,7 @@ def optimize_wavefunction(
       for k, v in stats['aux'].items()
       if not k.startswith('E_loc')
     }
+
     wf_logger.log_step(
       metrics,
       E_ref=phys_config.E_ref,
