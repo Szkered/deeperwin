@@ -474,6 +474,20 @@ class JCBConfig(ConfigBaseclass):
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
 
+class NCConfig(ConfigBaseclass):
+  n_hidden: List[int] = [256, 256]
+  """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
+
+  final_activation: Literal["abs", "sqr", "softplus", "sigmoid"] = "sigmoid"
+  """Final activation, range should be positive."""
+
+  use_res: bool = True
+  """whether to use residual"""
+
+  softmax_w: bool = False
+  """whether to normalize network weight by softmax"""
+
+
 class MLPConfig(ConfigBaseclass):
   activation: Literal["tanh", "silu", "elu", "relu"] = "tanh"
 
@@ -507,7 +521,7 @@ class ModelConfig(ConfigBaseclass):
   jcb: Optional[JCBConfig]
   """Enable the Jastrow-Cauchy-Binet matrix"""
 
-  nonlinear_coupling: Optional[int]  # TODO: placeholder
+  nonlinear_coupling: Optional[NCConfig]
   """Enable the nonlinear coupling of determinants"""
 
   use_el_el_cusp_correction: bool
@@ -550,6 +564,35 @@ class ModelConfigJCB(ModelConfig):
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: Optional[JCBConfig] = JCBConfig()
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfigNC(ModelConfig):
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["nc"] = "nc"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDeepErwin4()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
+  jastrow: Optional[JastrowConfig] = None
+  nonlinear_coupling: Optional[NCConfig] = NCConfig()
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfigJCBNC(ModelConfig):
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["jcbnc"] = "jcbnc"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
+  jastrow: Optional[JastrowConfig] = None
+  jcb: Optional[JCBConfig] = JCBConfig()
+  nonlinear_coupling: Optional[NCConfig] = NCConfig()
   use_el_el_cusp_correction: bool = False
 
 
@@ -1288,7 +1331,8 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1, ModelConfigJCB] = ModelConfigDeepErwin4()
+               ModelConfigDeepErwin1, ModelConfigJCB, ModelConfigNC,
+               ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()

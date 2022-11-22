@@ -1,13 +1,21 @@
 physical:
   name: N
 
+# pre_training:
+#   use: False
+
 model:
-  name: jcb
+  # name: jcb
+  # name: nc
+  name: jcbnc
   # name: dpe4
+
+  # orbitals:
+  #   n_determinants: 32
 
 logging:
   wandb:
     entity: szke
     project: DPE
 
-experiment_name: test
+experiment_name: dev
