@@ -90,6 +90,7 @@ class MLP(hk.Module):
     linear_out: bool = False,
     residual: bool = False,
     softmax_w: bool = False,
+    activation: Optional[str] = None,
     name: Optional[str] = None,
   ):
     super().__init__(name=name)
@@ -99,9 +100,10 @@ class MLP(hk.Module):
     self.linear_out = linear_out
     self.residual = residual
     self.softmax_w = softmax_w
+
     self.activation = dict(
       tanh=jnp.tanh, silu=jax.nn.silu, elu=jax.nn.elu, relu=jax.nn.relu
-    )[config.activation]
+    )[activation or config.activation]
     self.init_w = hk.initializers.VarianceScaling(
       1.0, config.init_weights_scale, config.init_weights_distribution
     )
@@ -1080,12 +1082,6 @@ class NonlinearCoupling(hk.Module):
     super().__init__(name=name)
     self.config = config
     self.mlp_config = mlp_config
-    self.final_activation = dict(
-      abs=jnp.abs,
-      sqr=jnp.square,
-      softplus=jax.nn.softplus,
-      sigmoid=jax.nn.sigmoid
-    )[config.final_activation]
 
   def __call__(self, sign_total, log_total):
     LOG_EPSILON = 1e-8
@@ -1095,19 +1091,23 @@ class NonlinearCoupling(hk.Module):
 
     # [batch x n_dets] -> [batch x 1]
     psi_coupled = MLP(
-      self.config.n_hidden + [1],
+      self.config.n_hidden,
       self.mlp_config,
       linear_out=True,
       output_bias=False,
       residual=self.config.use_res,
       softmax_w=self.config.softmax_w,
+      activation=self.config.activation,
       name="nonlinear_coupling"
     )(
       psi
     )
-    psi_coupled = self.final_activation(jnp.squeeze(psi_coupled, -1))
 
-    log_psi_sqr = 2 * jnp.log(psi_coupled + LOG_EPSILON)
+    # convert back to log domain
+    sign_coupled = jnp.sign(psi_coupled)
+    log_coupled = jnp.log(jnp.abs(psi_coupled) + LOG_EPSILON)
+
+    log_psi_sqr = evaluate_log_sum_det(sign_coupled, log_coupled)
 
     return log_psi_sqr
 
@@ -1214,13 +1214,9 @@ class Wavefunction(hk.Module):
         mo_up, mo_dn, features, self.config.orbitals.use_full_det
       )
 
-    # log_psi_sqr = evaluate_sum_of_determinants(
-    #   mo_up, mo_dn, self.config.orbitals.use_full_det
-    # )
-
     log_psi_sqr = self._calculate_log_psi_sqr(mo_up, mo_dn)
 
-    LOGGER.info(self.param_count())
+    # LOGGER.info(self.param_count())
 
     # Jastrow factor to the total wavefunction
     if self.config.jastrow:

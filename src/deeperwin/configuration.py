@@ -475,11 +475,11 @@ class JCBConfig(ConfigBaseclass):
 
 
 class NCConfig(ConfigBaseclass):
-  n_hidden: List[int] = [256, 256]
+  n_hidden: List[int] = [32, 32]
   """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
 
-  final_activation: Literal["abs", "sqr", "softplus", "sigmoid"] = "sigmoid"
-  """Final activation, range should be positive."""
+  activation: Literal["tanh"] = "tanh"
+  """Activation used for coupling MLP. MUST BE AN ODD FUNCTION."""
 
   use_res: bool = True
   """whether to use residual"""
@@ -553,7 +553,20 @@ class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   use_el_el_cusp_correction: bool = False
 
 
-class ModelConfigJCB(ModelConfig):
+class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["1e"] = "1e"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin4()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
+  jastrow: Optional[JastrowConfig] = None
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["jcb"] = "jcb"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
@@ -567,21 +580,21 @@ class ModelConfigJCB(ModelConfig):
   use_el_el_cusp_correction: bool = False
 
 
-class ModelConfigNC(ModelConfig):
+class ModelConfigNC(ModelConfig):  # NOTE: NC with 1e only
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["nc"] = "nc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
                    EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
-                   None] = EmbeddingConfigDeepErwin4()
+                   None] = EmbeddingConfigDESmallNo2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   nonlinear_coupling: Optional[NCConfig] = NCConfig()
   use_el_el_cusp_correction: bool = False
 
 
-class ModelConfigJCBNC(ModelConfig):
+class ModelConfigJCBNC(ModelConfig):  # NOTE: JCB+NC with 1e only
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["jcbnc"] = "jcbnc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
