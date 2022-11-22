@@ -560,7 +560,7 @@ class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
                    EmbeddingConfigDeepErwin1,
-                   None] = EmbeddingConfigDeepErwin4()
+                   None] = EmbeddingConfigDESmallNo2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -1344,8 +1344,8 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1, ModelConfigJCB, ModelConfigNC,
-               ModelConfigJCBNC] = ModelConfigDeepErwin4()
+               ModelConfigDeepErwin1, ModelConfig1E, ModelConfigJCB,
+               ModelConfigNC, ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()
