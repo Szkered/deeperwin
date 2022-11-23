@@ -11,6 +11,11 @@ model:
   name: dpe4
 
 optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
     # NOTE: per paper, in order to run on single A100
     n_walkers: 1700
 
@@ -22,12 +27,6 @@ logging:
   wandb:
     entity: szke
     project: DPE
-
-optimization:
-  n_epochs: 60000
-  intermediate_eval:
-    opt_epochs: [20000, 40000]
-    n_epochs: 10000
 
 experiment_name: baseline
 

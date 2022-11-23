@@ -15,6 +15,11 @@ model:
     n_hidden_one_el: 512
 
 optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
   optimizer:
     # NOTE: per paper, we need increase kfac damping
     damping: 4e-3
@@ -34,10 +39,5 @@ logging:
     entity: szke
     project: DPE
 
-optimization:
-  n_epochs: 60000
-  intermediate_eval:
-    opt_epochs: [20000, 40000]
-    n_epochs: 10000
 
 experiment_name: baseline
