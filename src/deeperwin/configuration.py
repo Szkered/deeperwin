@@ -199,7 +199,7 @@ class EmbeddingConfigDeepErwin4(EmbeddingConfigFermiNet):
 
 class EmbeddingConfigDESmall2e(EmbeddingConfigFermiNet):
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["dpe4sm2e"] = "dpe4sm2e"
+  name: Literal["dpe4"] = "dpe4"
   n_iterations: int = 4
   n_hidden_one_el: Union[List[int], int] = 64
   n_hidden_two_el: Union[List[int], int] = 8
@@ -218,7 +218,7 @@ class EmbeddingConfigDESmall2e(EmbeddingConfigFermiNet):
 
 class EmbeddingConfigDESmall1e(EmbeddingConfigFermiNet):
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["dpe4sm1e"] = "dpe4sm1e"
+  name: Literal["dpe4"] = "dpe4"
   n_iterations: int = 4
   n_hidden_one_el: Union[List[int], int] = 64
   n_hidden_two_el: Union[List[int], int] = 32
