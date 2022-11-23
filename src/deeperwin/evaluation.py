@@ -44,9 +44,11 @@ def evaluate_wavefunction(
     metrics = dict()
     if config.calculate_energies:
       # NOTE: for evaluation, always use the baseline method
-      energies = get_local_energy(
+      E_kin_first, E_kin_second, E_pot = get_local_energy(
         log_psi_sqr, params, "baseline", *mcmc_state.build_batch(fixed_params)
       )
+      E_kin = -0.5 * (E_kin_first + E_kin_second)
+      energies = E_kin + E_pot
       metrics['E_mean'] = pmean(jnp.nanmean(energies))
       metrics['E_var'] = pmean(jnp.nanmean(energies - metrics['E_mean'])**2)
     if config.forces:
