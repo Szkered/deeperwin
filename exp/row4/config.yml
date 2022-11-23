@@ -1,0 +1,43 @@
+physical:
+  name: K
+
+
+# NOTE: per paper, we need increase pretrain steps to 4000
+# due to slower HF convergence for larger systems
+pre_training:
+  n_epochs: 4000
+
+model:
+  name: dpe4
+
+  embedding:
+    # NOTE: per paper, we need increase 1e stream to 512
+    n_hidden_one_el: 512
+
+optimization:
+  optimizer:
+    # NOTE: per paper, we need increase kfac damping
+    damping: 4e-3
+
+  # NOTE: per paper, we need increase mcmc steps to 60 due to
+  # the high prob peak around the heavy atom core.
+  # The original paper only does this for Fe, here we apply for all row4
+  mcmc:
+    n_inter_steps: 60
+
+evaluation:
+  mcmc:
+    n_inter_steps: 60
+
+logging:
+  wandb:
+    entity: szke
+    project: DPE
+
+optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
+experiment_name: baseline
