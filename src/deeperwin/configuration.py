@@ -475,6 +475,11 @@ class JastrowConfig(ConfigBaseclass):
   """Use separate functions for J(spin_up) and J(spin_down)"""
 
 
+EmbeddingConfig = Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                        EmbeddingConfigDeepErwin1, EmbeddingConfigDESmall1e,
+                        EmbeddingConfigDESmall2e, None]
+
+
 class JCBConfig(ConfigBaseclass):
   use: bool = True
 
@@ -487,9 +492,7 @@ class JCBConfig(ConfigBaseclass):
   n_channels: int = 1
   """Number of JCB matrix to output"""
 
-  emb: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-             EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
-             None] = EmbeddingConfigDeepErwin4()
+  emb: EmbeddingConfig = EmbeddingConfigDeepErwin4()
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
 
@@ -516,11 +519,6 @@ class MLPConfig(ConfigBaseclass):
 
   init_weights_distribution: Literal["normal", "truncated_normal",
                                      "uniform"] = "uniform"
-
-
-EmbeddingConfig = Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                        EmbeddingConfigDeepErwin1, EmbeddingConfigDESmall1e,
-                        EmbeddingConfigDESmall2e, None]
 
 
 class ModelConfig(ConfigBaseclass):
