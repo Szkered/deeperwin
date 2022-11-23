@@ -16,10 +16,12 @@ optimization:
     opt_epochs: [20000, 40000]
     n_epochs: 10000
 
+  mcmc:
     # NOTE: per paper, in order to run on single A100
     n_walkers: 1700
 
 evaluation:
+  mcmc:
     # NOTE: per paper, in order to run on single A100
     n_walkers: 1700
 
