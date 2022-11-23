@@ -1,0 +1,22 @@
+physical:
+  name: S
+
+model:
+  name: dpe4
+
+  embedding:
+    # NOTE: per paper, we need increase 1e stream to 512
+    n_hidden_one_el: 512
+
+logging:
+  wandb:
+    entity: szke
+    project: DPE
+
+optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
+experiment_name: baseline

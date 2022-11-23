@@ -1,0 +1,36 @@
+physical:
+  name: Cyclobutadiene
+
+
+# NOTE: per paper, we need increase pretrain steps to 4000
+# due to slower HF convergence for larger systems
+pre_training:
+  n_epochs: 4000
+
+model:
+  name: dpe4
+
+optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
+  mcmc:
+    # NOTE: per paper, in order to run on single A100
+    n_walkers: 1700
+
+evaluation:
+  mcmc:
+    # NOTE: per paper, in order to run on single A100
+    n_walkers: 1700
+
+logging:
+  wandb:
+    entity: szke
+    project: DPE
+
+experiment_name: baseline
+
+
+# TODO: no envelope initialization
