@@ -496,6 +496,25 @@ class JCBConfig(ConfigBaseclass):
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
 
+class JCBConfigSmall(ConfigBaseclass):
+  use: bool = True
+
+  n_hidden: List[int] = [256, 256]
+  """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
+
+  differentiate_spins: bool = False
+  """Use separate functions for J(spin_up) and J(spin_down)"""
+
+  n_channels: int = 1
+  """Number of JCB matrix to output"""
+
+  emb: EmbeddingConfig = EmbeddingConfigDESmall2e()
+  """Config-options for mapping symmetrized input features to JCB matrix"""
+
+
+JCBConfigs = Union[JCBConfig, JCBConfigSmall, None]
+
+
 class NCConfig(ConfigBaseclass):
   n_hidden: List[int] = [32, 32]
   """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
@@ -590,11 +609,11 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
-  jcb: Optional[JCBConfig] = JCBConfig()
+  jcb: JCBConfigs = JCBConfig()
   use_el_el_cusp_correction: bool = False
 
 
-class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 1e only
+class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 2e
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["jcb2e"] = "jcb2e"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
@@ -602,7 +621,7 @@ class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 1e only
   embedding: EmbeddingConfig = EmbeddingConfigDESmall2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
-  jcb: Optional[JCBConfig] = JCBConfig()
+  jcb: JCBConfigs = JCBConfigSmall()
   use_el_el_cusp_correction: bool = False
 
 
