@@ -236,6 +236,26 @@ class EmbeddingConfigDESmall1e(EmbeddingConfigFermiNet):
   no_2e = True
 
 
+class EmbeddingConfigDEBig1e(EmbeddingConfigFermiNet):
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["dpe4"] = "dpe4"
+  n_iterations: int = 4
+  n_hidden_one_el: Union[List[int], int] = 256
+  n_hidden_two_el: Union[List[int], int] = 32
+  n_hidden_el_ions: Union[List[int], int] = 32
+  use_el_ion_stream: bool = True
+  use_h_two_same_diff = True
+  emb_dim = 32
+  use_w_mapping = True
+  use_schnet_features = True
+  sum_schnet_features = False
+  use_average_h_one = True
+  use_average_h_two = False
+  use_h_one = True
+  use_linear_out = False
+  no_2e = True
+
+
 class EmbeddingConfigDeepErwin1(ConfigBaseclass):
   name: Literal["dpe1"] = "dpe1"
   """Identifier for this model-part. Fixed."""
@@ -477,7 +497,7 @@ class JastrowConfig(ConfigBaseclass):
 
 EmbeddingConfig = Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
                         EmbeddingConfigDeepErwin1, EmbeddingConfigDESmall1e,
-                        EmbeddingConfigDESmall2e, None]
+                        EmbeddingConfigDEBig1e, EmbeddingConfigDESmall2e, None]
 
 
 class JCBConfig(ConfigBaseclass):
@@ -596,6 +616,17 @@ class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
+  jastrow: Optional[JastrowConfig] = None
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfig1EBig(ModelConfig):  # NOTE: Gold-Standard with 1e only
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["1ebig"] = "1ebig"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: EmbeddingConfig = EmbeddingConfigDEBig1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -1393,8 +1424,8 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1, ModelConfig1E, ModelConfigJCB,
-               ModelConfigJCB2e, ModelConfigNC,
+               ModelConfigDeepErwin1, ModelConfig1E, ModelConfig1EBig,
+               ModelConfigJCB, ModelConfigJCB2e, ModelConfigNC,
                ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
