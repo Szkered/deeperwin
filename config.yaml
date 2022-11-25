@@ -8,13 +8,13 @@ pre_training:
 model:
   # name: 1e
   # name: jcb
-  name: jcb2e
+  # name: jcb2e
   # name: nc
   # name: jcbnc
-  # name: dpe4
+  name: dpe4
 
-  jcb:
-    n_channels: 2
+  # jcb:
+  #   n_channels: 2
 
   # nonlinear_coupling:
   #   softmax_w: True
