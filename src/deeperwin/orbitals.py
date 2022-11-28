@@ -256,7 +256,7 @@ def get_baseline_solution(
     ci_weights = casscf.ci.flatten()
 
     logger.debug(
-      f"Total nuber of CASSCF-determinants before truncation: {len(ci_weights)}"
+      f"Total number of CASSCF-determinants before truncation: {len(ci_weights)}"
     )
 
     if n_dets < len(ci_weights):

@@ -25,6 +25,7 @@ from deeperwin.local_features import build_local_rotation_matrices
 from deeperwin.utils import get_distance_matrix, get_el_ion_distance_matrix
 from collections import namedtuple
 from kfac_jax import register_scale_and_shift
+from typing import Optional
 
 from jax import numpy as jnp
 from jax import lax
@@ -1211,11 +1212,18 @@ class Wavefunction(hk.Module):
     diff_dist, features = self._calculate_features(
       r, R, Z, fixed_params.get('input')
     )
-    embeddings = self._calculate_embedding(features)
-    # [batch x n_dets x #alphe/beta x n_el]
-    mo_up, mo_dn = self._calculate_orbitals(
-      diff_dist, embeddings, fixed_params.get('orbitals')
-    )
+    if (self.config.jcb and self.config.jcb.analytic_orbitals):
+      mo_up, mo_dn = get_baseline_slater_matrices(
+        diff_dist.diff_el_ion, diff_dist.dist_el_ion, fixed_params["orbitals"],
+        self.config.orbitals.use_full_det
+      )
+
+    else:
+      embeddings = self._calculate_embedding(features)
+      # [batch x n_dets x #alphe/beta x n_el]
+      mo_up, mo_dn = self._calculate_orbitals(
+        diff_dist, embeddings, fixed_params.get('orbitals')
+      )
 
     if self.config.jcb and not self.config.jastrow:
       mo_up, mo_dn = self._calculate_jcb_product(
@@ -1233,7 +1241,7 @@ class Wavefunction(hk.Module):
     if not self.config.jcb and self.config.jastrow:
       log_psi_sqr += self._calculate_jastrow(embeddings)
 
-    # LOGGER.info(self.param_count())
+    LOGGER.info(self.param_count())
 
     # Electron-electron-cusps
     if self.config.use_el_el_cusp_correction:
@@ -1353,10 +1361,13 @@ class Wavefunction(hk.Module):
 
 
 def build_log_psi_squared(
-  config: ModelConfig, phys_config: PhysicalConfig, fixed_params, rng_seed
+  config: ModelConfig, phys_config: PhysicalConfig,
+  baseline_config: Optional[CASSCFConfig], fixed_params, rng_seed
 ):
   # Initialize fixed model parameters
-  fixed_params = fixed_params or init_model_fixed_params(config, phys_config)
+  fixed_params = fixed_params or init_model_fixed_params(
+    config, phys_config, baseline_config
+  )
 
   # Build model
   model = hk.multi_transform(
@@ -1377,7 +1388,8 @@ def build_log_psi_squared(
 
 
 def init_model_fixed_params(
-  config: ModelConfig, physical_config: PhysicalConfig
+  config: ModelConfig, physical_config: PhysicalConfig,
+  baseline_config: Optional[CASSCFConfig]
 ):
   """
     Computes CASSCF baseline solution for DeepErwin model and initializes fixed parameters.
@@ -1404,6 +1416,12 @@ def init_model_fixed_params(
     )
     fixed_params["baseline_energies"].update(dict(E_hf=E_hf, E_casscf=E_casscf))
     LOGGER.debug(f"Finished baseline calculation: E_casscf={E_casscf:.6f}")
+
+  # get analytical orbitals for JCB
+  if config.jcb and config.jcb.analytic_orbitals and baseline_config:
+    fixed_params["orbitals"], (E_hf, E_casscf) = get_baseline_solution(
+      physical_config, baseline_config, config.orbitals.n_determinants
+    )
 
   if config.features.use_local_coordinates:
     fixed_params["input"]["local_rotations"] = build_local_rotation_matrices(

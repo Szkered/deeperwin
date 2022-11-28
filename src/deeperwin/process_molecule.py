@@ -79,9 +79,14 @@ def process_molecule(config_file):
   else:
     params_to_reuse, fixed_params, mcmc_state, opt_state, clipping_state = None, None, None, None, None
 
+  # prepare analytic orbitals
+  if config.model.jcb and config.model.jcb.analytic_orbitals:  # HACK
+    assert config.pre_training is not None
+  baseline_config = None if config.pre_training is None else config.pre_training.baseline
+
   # Build wavefunction and initialize parameters
   log_psi_squared, orbital_func, params, fixed_params = build_log_psi_squared(
-    config.model, config.physical, fixed_params, rng_seed
+    config.model, config.physical, baseline_config, fixed_params, rng_seed
   )
   if params_to_reuse:
     params = merge_params(params, params_to_reuse)
@@ -105,7 +110,10 @@ def process_molecule(config_file):
     loggers = None
 
   # STEP 1: Supervised pre-training of wavefunction orbitals
-  if config.pre_training and config.pre_training.n_epochs > 0:
+  if (
+    config.pre_training and config.pre_training.n_epochs > 0 and
+    not (config.model.jcb and config.model.jcb.analytic_orbitals)
+  ):
     logger.info("Starting pre-training of orbitals...")
     params, _, mcmc_state = pretrain_orbitals(
       orbital_func,
