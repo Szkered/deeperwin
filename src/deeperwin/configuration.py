@@ -518,6 +518,9 @@ class JCBConfig(ConfigBaseclass):
   emb: EmbeddingConfig = EmbeddingConfigDeepErwin4()
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
+  analytic_orbitals: bool = False
+  """If true, use pretrained analytical orbitals instead of neural nets"""
+
 
 class JCBConfigSmall(ConfigBaseclass):
   use: bool = True

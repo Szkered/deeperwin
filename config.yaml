@@ -1,28 +1,31 @@
 physical:
   name: N
 
-pre_training:
-  use: False
+# pre_training:
+#   use: False
+  # use_only_leading_determinant: False
   # n_epochs: 4000
 
 model:
   # name: 1e
-  # name: jcb
-  name: jcbs
+  name: jcb
+  # name: jcbs
   # name: jcb2e
   # name: nc
   # name: jcbnc
   # name: dpe4
-  jastrow:
-    n_hidden: [256, 256]
-    differentiate_spins: false
+  # jastrow:
+  #   n_hidden: [256, 256]
+  #   differentiate_spins: false
 
 
   jcb:
-    n_channels: 2
+    n_channels: 4
+    analytic_orbitals: True
     emb:
       final_linear: False
       n_hidden_one_el: 192
+
 
   # nonlinear_coupling:
   #   softmax_w: True
@@ -49,9 +52,15 @@ model:
 #   mcmc:
 #     n_inter_steps: 60
 
-# logging:
-#   wandb:
-#     entity: szke
-#     project: DPE
+optimization:
+  n_epochs: 60000
+  intermediate_eval:
+    opt_epochs: [20000, 40000]
+    n_epochs: 10000
+
+logging:
+  wandb:
+    entity: szke
+    project: DPE
 
 experiment_name: dev
