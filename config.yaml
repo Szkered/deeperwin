@@ -7,16 +7,22 @@ pre_training:
 
 model:
   # name: 1e
-  name: jcb
+  # name: jcb
+  name: jcbs
   # name: jcb2e
   # name: nc
   # name: jcbnc
   # name: dpe4
+  jastrow:
+    n_hidden: [256, 256]
+    differentiate_spins: false
+
 
   jcb:
     n_channels: 2
     emb:
       final_linear: False
+      n_hidden_one_el: 192
 
   # nonlinear_coupling:
   #   softmax_w: True

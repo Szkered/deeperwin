@@ -647,6 +647,30 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   use_el_el_cusp_correction: bool = False
 
 
+class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["jcb"] = "jcb"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
+  jastrow: Optional[JastrowConfig] = None
+  jcb: JCBConfigs = JCBConfig()
+  use_el_el_cusp_correction: bool = False
+
+
+class ModelConfigJCBSimple(ModelConfig):  # NOTE: JCB with 1e only
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["jcbs"] = "jcbs"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
+  jastrow: Optional[JastrowConfig] = JastrowConfig()
+  jcb: JCBConfigs = JCBConfig()
+  use_el_el_cusp_correction: bool = False
+
+
 class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 2e
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["jcb2e"] = "jcb2e"
@@ -1428,8 +1452,8 @@ class Configuration(ConfigBaseclass):
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
                ModelConfigDeepErwin1, ModelConfig1E, ModelConfig1EBig,
-               ModelConfigJCB, ModelConfigJCB2e, ModelConfigNC,
-               ModelConfigJCBNC] = ModelConfigDeepErwin4()
+               ModelConfigJCB, ModelConfigJCBSimple, ModelConfigJCB2e,
+               ModelConfigNC, ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()

@@ -1217,18 +1217,23 @@ class Wavefunction(hk.Module):
       diff_dist, embeddings, fixed_params.get('orbitals')
     )
 
-    if self.config.jcb:
+    if self.config.jcb and not self.config.jastrow:
       mo_up, mo_dn = self._calculate_jcb_product(
         mo_up, mo_dn, features, self.config.orbitals.use_full_det
       )
 
     log_psi_sqr = self._calculate_log_psi_sqr(mo_up, mo_dn)
 
-    # LOGGER.info(self.param_count())
+    # Simple Jastrow factor with JCB network
+    if self.config.jcb and self.config.jastrow:
+      jcb_emb = self._calculate_embedding(features, jcb=True)
+      log_psi_sqr += self._calculate_jastrow(jcb_emb)
 
     # Jastrow factor to the total wavefunction
-    if self.config.jastrow:
+    if not self.config.jcb and self.config.jastrow:
       log_psi_sqr += self._calculate_jastrow(embeddings)
+
+    # LOGGER.info(self.param_count())
 
     # Electron-electron-cusps
     if self.config.use_el_el_cusp_correction:
