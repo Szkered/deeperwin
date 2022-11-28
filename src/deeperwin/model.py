@@ -416,12 +416,14 @@ class FermiNetEmbedding(hk.Module):
     config: EmbeddingConfigFermiNet,
     mlp_config: MLPConfig,
     n_up,
+    final_linear: bool = True,
     name=None
   ):
     super().__init__(name=name)
     self.config = config
     self.mlp_config = mlp_config
     self.n_up = n_up
+    self.final_linear = final_linear
 
   def _split_into_same_diff(self, features_el_el):
     n_el = features_el_el.shape[-3]  # [batch x n_el x n_el x features]
@@ -510,14 +512,19 @@ class FermiNetEmbedding(hk.Module):
     h_el_in = SymmetricFeatures(self.config, self.mlp_config, self.n_up)(
       h_el, h_ion, h_el_el, h_el_ion, self.config.no_2e
     )
-    h_el = MLP(
-      [self.config.n_hidden_one_el[i]],
-      self.mlp_config,
-      residual=True,
-      name="h_el"
-    )(
-      h_el_in
-    )
+
+    if self.final_linear:
+      h_el = MLP(
+        [self.config.n_hidden_one_el[i]],
+        self.mlp_config,
+        residual=True,
+        name="h_el"
+      )(
+        h_el_in
+      )
+    else:
+      h_el = h_el_in
+
     if not self.config.use_el_ion_stream:
       h_el_ion = h_el[..., jnp.newaxis, :]
 
@@ -1023,6 +1030,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
     n_el = jcb_emb.el.shape[-2]
     n_orbs = n_el * self.n_dets  # TODO: support n_orbs directly
     output_size = n_orbs * n_el * self.config.n_channels
+
     if self.config.differentiate_spins:
       jastrow_up = MLP(
         self.config.n_hidden + [output_size],
@@ -1281,9 +1289,14 @@ class Wavefunction(hk.Module):
   def _calculate_embedding(self, features, jcb: bool = False):
     name = "embedding" if not jcb else "jcb"
     config = self.config.embedding if not jcb else self.config.jcb.emb
+    final_linear = True if not jcb else self.config.jcb.emb.final_linear
     if self.config.embedding.name in ["ferminet", "dpe4"]:
       return FermiNetEmbedding(
-        config, self.config.mlp, self.phys_config.n_up, name=f"{name}"
+        config,
+        self.config.mlp,
+        self.phys_config.n_up,
+        final_linear=final_linear,
+        name=f"{name}"
       )(
         features
       )

@@ -7,14 +7,16 @@ pre_training:
 
 model:
   # name: 1e
-  # name: jcb
-  name: jcb2e
+  name: jcb
+  # name: jcb2e
   # name: nc
   # name: jcbnc
   # name: dpe4
 
   jcb:
     n_channels: 2
+    emb:
+      final_linear: False
 
   # nonlinear_coupling:
   #   softmax_w: True
@@ -41,9 +43,9 @@ model:
 #   mcmc:
 #     n_inter_steps: 60
 
-logging:
-  wandb:
-    entity: szke
-    project: DPE
+# logging:
+#   wandb:
+#     entity: szke
+#     project: DPE
 
 experiment_name: dev

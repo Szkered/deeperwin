@@ -150,6 +150,9 @@ class EmbeddingConfigFermiNet(ConfigBaseclass):
   no_2e: bool = False
   """If true, turn off the message passing part in the embedding network"""
 
+  final_linear: bool = True
+  """If true, project the final symmetric feature to 1e hidden size"""
+
   @validator("n_iterations", always=True)
   def _set_n_iterations(cls, n, values):
     if n is None:
