@@ -200,50 +200,11 @@ class EmbeddingConfigDeepErwin4(EmbeddingConfigFermiNet):
   use_linear_out = False
 
 
-class EmbeddingConfigDESmall2e(EmbeddingConfigFermiNet):
+class EmbeddingConfigDESmallNo2e(EmbeddingConfigFermiNet):
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["dpe4"] = "dpe4"
   n_iterations: int = 4
   n_hidden_one_el: Union[List[int], int] = 64
-  n_hidden_two_el: Union[List[int], int] = 8
-  n_hidden_el_ions: Union[List[int], int] = 32
-  use_el_ion_stream: bool = True
-  use_h_two_same_diff = True
-  emb_dim = 32
-  use_w_mapping = True
-  use_schnet_features = True
-  sum_schnet_features = False
-  use_average_h_one = True
-  use_average_h_two = False
-  use_h_one = True
-  use_linear_out = False
-
-
-class EmbeddingConfigDESmall1e(EmbeddingConfigFermiNet):
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["dpe4"] = "dpe4"
-  n_iterations: int = 4
-  n_hidden_one_el: Union[List[int], int] = 64
-  n_hidden_two_el: Union[List[int], int] = 32
-  n_hidden_el_ions: Union[List[int], int] = 32
-  use_el_ion_stream: bool = True
-  use_h_two_same_diff = True
-  emb_dim = 32
-  use_w_mapping = True
-  use_schnet_features = True
-  sum_schnet_features = False
-  use_average_h_one = True
-  use_average_h_two = False
-  use_h_one = True
-  use_linear_out = False
-  no_2e = True
-
-
-class EmbeddingConfigDEBig1e(EmbeddingConfigFermiNet):
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["dpe4"] = "dpe4"
-  n_iterations: int = 4
-  n_hidden_one_el: Union[List[int], int] = 256
   n_hidden_two_el: Union[List[int], int] = 32
   n_hidden_el_ions: Union[List[int], int] = 32
   use_el_ion_stream: bool = True
@@ -292,10 +253,10 @@ class EmbeddingConfigDeepErwin1(ConfigBaseclass):
 class CuspCorrectionConfig(ConfigBaseclass):
   use: bool = True
   cusp_type: Literal["mo", "ao"] = "mo"
-  """Mode how to calculate cusp-corrected orbitals. 
-    'ao' computes a cusp correction for each atomic orbital (i.e. for each basis function), 
+  """Mode how to calculate cusp-corrected orbitals.
+    'ao' computes a cusp correction for each atomic orbital (i.e. for each basis function),
     'mo' computes a cusp correction for each molecular orbital (i.e. each solution of the HF-calculation).
-    For atoms both cusp_types should be equivalent, but for molecules the simpler 'ao' cusps can in principle not correctly model the cusps that arise from an atomic wavefunction having a finite contribution at a different nucleus.   
+    For atoms both cusp_types should be equivalent, but for molecules the simpler 'ao' cusps can in principle not correctly model the cusps that arise from an atomic wavefunction having a finite contribution at a different nucleus.
     """
 
   r_cusp_el_ion_scale: float = 1.0
@@ -354,7 +315,7 @@ class InputFeatureConfig(ConfigBaseclass):
   """Epsilon to be used when calculating pairwise features with negative exponent n < 0. Feature vector is calculated as :math:`\\frac{1}{dist^{-n} + eps}`"""
 
   distance_feature_powers: List[int]
-  """To calculate the embeddings, pairwise distances between particles are converted into input feature vectors and then fed into the embedding network. 
+  """To calculate the embeddings, pairwise distances between particles are converted into input feature vectors and then fed into the embedding network.
     These input feature vectors partially consist of radial-basis-functions and monomials of the distance (i.e. r^n). This list specifies which exponents should be used to create the distance monomials.
     Note, that using powers of -1 or +1 can lead to cusps in the input features, which may or may not be desirable.
     """
@@ -463,7 +424,7 @@ class OrbitalsConfig(ConfigBaseclass):
   """Number of determinants in the wavefunction model"""
 
   use_full_det: bool = True
-  """Whether to use full n_el x n_el determinants, or whether to assume a block diagonal structure, 
+  """Whether to use full n_el x n_el determinants, or whether to assume a block diagonal structure,
     represented by det(n_up x n_up)*det(n_dn x n_dn)"""
 
 
@@ -498,11 +459,6 @@ class JastrowConfig(ConfigBaseclass):
   """Use separate functions for J(spin_up) and J(spin_down)"""
 
 
-EmbeddingConfig = Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                        EmbeddingConfigDeepErwin1, EmbeddingConfigDESmall1e,
-                        EmbeddingConfigDEBig1e, EmbeddingConfigDESmall2e, None]
-
-
 class JCBConfig(ConfigBaseclass):
   use: bool = True
 
@@ -515,30 +471,13 @@ class JCBConfig(ConfigBaseclass):
   n_channels: int = 1
   """Number of JCB matrix to output"""
 
-  emb: EmbeddingConfig = EmbeddingConfigDeepErwin4()
+  emb: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+             EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+             None] = EmbeddingConfigDeepErwin4()
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
   analytic_orbitals: bool = False
   """If true, use pretrained analytical orbitals instead of neural nets"""
-
-
-class JCBConfigSmall(ConfigBaseclass):
-  use: bool = True
-
-  n_hidden: List[int] = [256, 256]
-  """List of ints, specifying the number of hidden units per layer in the jastrow-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
-
-  differentiate_spins: bool = False
-  """Use separate functions for J(spin_up) and J(spin_down)"""
-
-  n_channels: int = 1
-  """Number of JCB matrix to output"""
-
-  emb: EmbeddingConfig = EmbeddingConfigDESmall2e()
-  """Config-options for mapping symmetrized input features to JCB matrix"""
-
-
-JCBConfigs = Union[JCBConfig, JCBConfigSmall, None]
 
 
 class NCConfig(ConfigBaseclass):
@@ -572,7 +511,8 @@ class ModelConfig(ConfigBaseclass):
   features: InputFeatureConfig
   """Config-options for mapping raw inputs (r,R,Z) to some symmetrized input features"""
 
-  embedding: EmbeddingConfig
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e, None]
   """Config-options for mapping symmetrized input features to high-dimensional embeddings of electrons"""
 
   orbitals: OrbitalsConfig
@@ -599,7 +539,8 @@ class ModelConfigDeepErwin1(ModelConfig):  # NOTE: Multiple geometry
   name: Literal["dpe1"] = "dpe1"
   features: Union[InputFeatureConfigDPE1,
                   InputFeatureConfigFermiNet] = InputFeatureConfigDPE1()
-  embedding: EmbeddingConfig = EmbeddingConfigDeepErwin1()
+  embedding: Union[EmbeddingConfigDeepErwin1, EmbeddingConfigDeepErwin4,
+                   EmbeddingConfigFermiNet, None] = EmbeddingConfigDeepErwin1()
   orbitals: OrbitalsConfigDPE1 = OrbitalsConfigDPE1()
   jastrow: Optional[JastrowConfig] = JastrowConfig()
   use_el_el_cusp_correction = True
@@ -610,7 +551,9 @@ class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   name: Literal["dpe4"] = "dpe4"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDeepErwin4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin4()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -621,18 +564,9 @@ class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
   name: Literal["1e"] = "1e"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
-  jastrow: Optional[JastrowConfig] = None
-  use_el_el_cusp_correction: bool = False
-
-
-class ModelConfig1EBig(ModelConfig):  # NOTE: Gold-Standard with 1e only
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["1ebig"] = "1ebig"
-  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
-                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDEBig1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin4()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -643,46 +577,12 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   name: Literal["jcb"] = "jcb"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
-  jcb: JCBConfigs = JCBConfig()
-  use_el_el_cusp_correction: bool = False
-
-
-class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["jcb"] = "jcb"
-  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
-                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
-  jastrow: Optional[JastrowConfig] = None
-  jcb: JCBConfigs = JCBConfig()
-  use_el_el_cusp_correction: bool = False
-
-
-class ModelConfigJCBSimple(ModelConfig):  # NOTE: JCB with 1e only
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["jcbs"] = "jcbs"
-  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
-                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
-  jastrow: Optional[JastrowConfig] = JastrowConfig()
-  jcb: JCBConfigs = JCBConfig()
-  use_el_el_cusp_correction: bool = False
-
-
-class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 2e
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["jcb2e"] = "jcb2e"
-  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
-                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall2e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
-  jastrow: Optional[JastrowConfig] = None
-  jcb: JCBConfigs = JCBConfigSmall()
+  jcb: Optional[JCBConfig] = JCBConfig()
   use_el_el_cusp_correction: bool = False
 
 
@@ -691,7 +591,9 @@ class ModelConfigNC(ModelConfig):  # NOTE: NC with 1e only
   name: Literal["nc"] = "nc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   nonlinear_coupling: Optional[NCConfig] = NCConfig()
@@ -703,7 +605,9 @@ class ModelConfigJCBNC(ModelConfig):  # NOTE: JCB+NC with 1e only
   name: Literal["jcbnc"] = "jcbnc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: Optional[JCBConfig] = JCBConfig()
@@ -716,7 +620,8 @@ class ModelConfigFermiNet(ModelConfig):
   name: Literal["ferminet"] = "ferminet"
   features: Union[InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigFermiNet()
-  embedding: EmbeddingConfig = EmbeddingConfigFermiNet()
+  embedding: Union[EmbeddingConfigFermiNet, EmbeddingConfigDeepErwin4,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigFermiNet()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction = False
@@ -910,7 +815,7 @@ class BFGSOptimizerConfig(ConfigBaseclass):
   """Identifier of optimizer. Fixed."""
 
   internal_optimizer: StandardOptimizerConfig = StandardOptimizerConfig()
-  """Configuration for built-in optimizer to update the parameters, usinge the preconditioned gradients calculated by BFGS. 
+  """Configuration for built-in optimizer to update the parameters, usinge the preconditioned gradients calculated by BFGS.
     Use these internal optimizers to easily implement features like momentum."""
 
   memory_length: int = 2000
@@ -1454,9 +1359,8 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1, ModelConfig1E, ModelConfig1EBig,
-               ModelConfigJCB, ModelConfigJCBSimple, ModelConfigJCB2e,
-               ModelConfigNC, ModelConfigJCBNC] = ModelConfigDeepErwin4()
+               ModelConfigDeepErwin1, ModelConfigJCB, ModelConfigNC,
+               ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
   logging: LoggingConfig = LoggingConfig()

@@ -1212,7 +1212,7 @@ class Wavefunction(hk.Module):
     diff_dist, features = self._calculate_features(
       r, R, Z, fixed_params.get('input')
     )
-    if self.config.jcb.analytic_orbitals:
+    if self.config.jcb and self.config.jcb.analytic_orbitals:
       mo_up, mo_dn = get_baseline_slater_matrices(
         diff_dist.diff_el_ion, diff_dist.dist_el_ion, fixed_params["orbitals"],
         self.config.orbitals.use_full_det
@@ -1418,7 +1418,7 @@ def init_model_fixed_params(
     LOGGER.debug(f"Finished baseline calculation: E_casscf={E_casscf:.6f}")
 
   # get analytical orbitals for JCB
-  if config.jcb.analytic_orbitals and baseline_config:
+  if config.jcb and config.jcb.analytic_orbitals and baseline_config:
     fixed_params["orbitals"], (E_hf, E_casscf) = get_baseline_solution(
       physical_config, baseline_config, config.orbitals.n_determinants
     )

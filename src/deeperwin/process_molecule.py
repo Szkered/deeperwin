@@ -80,7 +80,7 @@ def process_molecule(config_file):
     params_to_reuse, fixed_params, mcmc_state, opt_state, clipping_state = None, None, None, None, None
 
   # prepare analytic orbitals
-  if config.model.jcb.analytic_orbitals:  # HACK
+  if config.model.jcb and config.model.jcb.analytic_orbitals:  # HACK
     assert config.pre_training is not None
   baseline_config = None if config.pre_training is None else config.pre_training.baseline
 
@@ -112,7 +112,7 @@ def process_molecule(config_file):
   # STEP 1: Supervised pre-training of wavefunction orbitals
   if (
     config.pre_training and config.pre_training.n_epochs > 0 and
-    not config.model.jcb.analytic_orbitals
+    not (config.model.jcb and config.model.jcb.analytic_orbitals)
   ):
     logger.info("Starting pre-training of orbitals...")
     params, _, mcmc_state = pretrain_orbitals(
