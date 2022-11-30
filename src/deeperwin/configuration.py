@@ -479,6 +479,9 @@ class JCBConfig(ConfigBaseclass):
   analytic_orbitals: bool = False
   """If true, use pretrained analytical orbitals instead of neural nets"""
 
+  aggregate: bool = True
+  """If false, don't aggregate JCB embedding."""
+
 
 class NCConfig(ConfigBaseclass):
   n_hidden: List[int] = [32, 32]

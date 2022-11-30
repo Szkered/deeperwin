@@ -22,8 +22,9 @@ model:
   jcb:
     n_channels: 4
     analytic_orbitals: True
+    aggregate: False
     emb:
-      final_linear: False
+      # final_linear: False
       n_hidden_one_el: 192
 
 
