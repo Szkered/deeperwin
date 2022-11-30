@@ -498,11 +498,6 @@ class JastrowConfig(ConfigBaseclass):
   """Use separate functions for J(spin_up) and J(spin_down)"""
 
 
-EmbeddingConfig = Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                        EmbeddingConfigDeepErwin1, EmbeddingConfigDESmall1e,
-                        EmbeddingConfigDEBig1e, EmbeddingConfigDESmall2e, None]
-
-
 class JCBConfig(ConfigBaseclass):
   use: bool = True
 
@@ -515,7 +510,8 @@ class JCBConfig(ConfigBaseclass):
   n_channels: int = 1
   """Number of JCB matrix to output"""
 
-  emb: EmbeddingConfig = EmbeddingConfigDeepErwin4()
+  emb: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+             EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDeepErwin4()
   """Config-options for mapping symmetrized input features to JCB matrix"""
 
   analytic_orbitals: bool = False
@@ -578,7 +574,8 @@ class ModelConfig(ConfigBaseclass):
   features: InputFeatureConfig
   """Config-options for mapping raw inputs (r,R,Z) to some symmetrized input features"""
 
-  embedding: EmbeddingConfig
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None]
   """Config-options for mapping symmetrized input features to high-dimensional embeddings of electrons"""
 
   orbitals: OrbitalsConfig
@@ -605,7 +602,9 @@ class ModelConfigDeepErwin1(ModelConfig):  # NOTE: Multiple geometry
   name: Literal["dpe1"] = "dpe1"
   features: Union[InputFeatureConfigDPE1,
                   InputFeatureConfigFermiNet] = InputFeatureConfigDPE1()
-  embedding: EmbeddingConfig = EmbeddingConfigDeepErwin1()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin1()
   orbitals: OrbitalsConfigDPE1 = OrbitalsConfigDPE1()
   jastrow: Optional[JastrowConfig] = JastrowConfig()
   use_el_el_cusp_correction = True
@@ -616,7 +615,9 @@ class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   name: Literal["dpe4"] = "dpe4"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDeepErwin4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1,
+                   None] = EmbeddingConfigDeepErwin4()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -627,7 +628,8 @@ class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
   name: Literal["1e"] = "1e"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -638,7 +640,8 @@ class ModelConfig1EBig(ModelConfig):  # NOTE: Gold-Standard with 1e only
   name: Literal["1ebig"] = "1ebig"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDEBig1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDEBig1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction: bool = False
@@ -649,7 +652,8 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   name: Literal["jcb"] = "jcb"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: JCBConfigs = JCBConfig()
@@ -661,7 +665,8 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   name: Literal["jcb"] = "jcb"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: JCBConfigs = JCBConfig()
@@ -673,7 +678,8 @@ class ModelConfigJCBSimple(ModelConfig):  # NOTE: JCB with 1e only
   name: Literal["jcbs"] = "jcbs"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = JastrowConfig()
   jcb: JCBConfigs = JCBConfig()
@@ -685,7 +691,8 @@ class ModelConfigJCB2e(ModelConfig):  # NOTE: JCB with 2e
   name: Literal["jcb2e"] = "jcb2e"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall2e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall2e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: JCBConfigs = JCBConfigSmall()
@@ -697,7 +704,8 @@ class ModelConfigNC(ModelConfig):  # NOTE: NC with 1e only
   name: Literal["nc"] = "nc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   nonlinear_coupling: Optional[NCConfig] = NCConfig()
@@ -709,7 +717,8 @@ class ModelConfigJCBNC(ModelConfig):  # NOTE: JCB+NC with 1e only
   name: Literal["jcbnc"] = "jcbnc"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: EmbeddingConfig = EmbeddingConfigDESmall1e()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigDESmall1e()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: Optional[JCBConfig] = JCBConfig()
@@ -722,7 +731,8 @@ class ModelConfigFermiNet(ModelConfig):
   name: Literal["ferminet"] = "ferminet"
   features: Union[InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigFermiNet()
-  embedding: EmbeddingConfig = EmbeddingConfigFermiNet()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, None] = EmbeddingConfigFermiNet()
   orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
   jastrow: Optional[JastrowConfig] = None
   use_el_el_cusp_correction = False
