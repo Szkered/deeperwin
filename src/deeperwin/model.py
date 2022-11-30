@@ -1030,49 +1030,71 @@ class JastrowCauchyBinetMatrix(hk.Module):
   def __call__(self, mo_matrix, jcb_emb: Embeddings):
     n_el = jcb_emb.el.shape[-2]
     n_orbs = n_el * self.n_dets  # TODO: support n_orbs directly
-    output_size = n_orbs * n_el * self.config.n_channels
-
-    if self.config.differentiate_spins:
-      jastrow_up = MLP(
-        self.config.n_hidden + [output_size],
-        self.mlp_config,
-        linear_out=True,
-        output_bias=False,
-        name="up"
-      )(
-        jcb_emb.el[..., :self.n_up, :]
-      )
-      jastrow_dn = MLP(
-        self.config.n_hidden + [output_size],
-        self.mlp_config,
-        linear_out=True,
-        output_bias=False,
-        name="dn"
-      )(
-        jcb_emb.el[..., self.n_up:, :]
-      )
-
-      jastrow = jnp.sum(jastrow_up, axis=-2) + jnp.sum(jastrow_dn, axis=-2)
-    else:
-      jastrow = MLP(
-        self.config.n_hidden + [output_size],
-        linear_out=True,
-        output_bias=False,
-        name="mlp"
-      )(
-        jcb_emb.el
-      )
-      jastrow = jnp.sum(jastrow, axis=-2)
 
     # mo_matrix [batch x n_dets x n_el(perm. inv.) x n_el]
     # transpose [batch x n_dets x n_el x n_el(perm. inv.)]
     mo_matrix = jnp.swapaxes(mo_matrix, -1, -2)
     mo_matrix = mo_matrix.reshape(mo_matrix.shape[:-3] + (n_orbs, n_el))
 
-    # [n_channels~ndet x n_el(perm. inv.) x n_orbs]
-    jcb_m = jastrow.reshape(
-      jastrow.shape[:-1] + (self.config.n_channels, n_el, n_orbs)
-    )
+    if self.config.aggregate:
+      output_size = n_orbs * n_el * self.config.n_channels
+
+      if self.config.differentiate_spins:
+        jastrow_up = MLP(
+          self.config.n_hidden + [output_size],
+          self.mlp_config,
+          linear_out=True,
+          output_bias=False,
+          name="up"
+        )(
+          jcb_emb.el[..., :self.n_up, :]
+        )
+        jastrow_dn = MLP(
+          self.config.n_hidden + [output_size],
+          self.mlp_config,
+          linear_out=True,
+          output_bias=False,
+          name="dn"
+        )(
+          jcb_emb.el[..., self.n_up:, :]
+        )
+
+        jastrow = jnp.sum(jastrow_up, axis=-2) + jnp.sum(jastrow_dn, axis=-2)
+      else:
+        jastrow = MLP(
+          self.config.n_hidden + [output_size],
+          linear_out=True,
+          output_bias=False,
+          name="jcb"
+        )(
+          jcb_emb.el
+        )
+        jastrow = jnp.sum(jastrow, axis=-2)
+
+      # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
+      jcb_m = jastrow.reshape(
+        jastrow.shape[:-1] + (self.config.n_channels, n_el, n_orbs)
+      )
+
+    else:
+      output_size = n_orbs * self.config.n_channels
+      # [batch x  n_el(perm. inv.) x (n_orbs * n_chan)]
+      jastrow = MLP(
+        self.config.n_hidden + [output_size],
+        self.mlp_config,
+        linear_out=True,
+        output_bias=False,
+        name="jcb"
+      )(
+        jcb_emb.el
+      )
+
+      # [batch x n_el(perm. inv.) x n_channels~ndet x n_orbs]
+      jcb_m = jastrow.reshape(
+        jastrow.shape[:-1] + (self.config.n_channels, n_orbs)
+      )
+      # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
+      jcb_m = jnp.swapaxes(jcb_m, -3, -2)
 
     # vmapped [n_el(perm. inv.) x n_orbs] @ [n_orbs x n_el]
     # mixed_mo [batch x n_channels~ndet x n_el(perm. inv.) x n_el]
