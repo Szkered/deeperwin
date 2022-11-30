@@ -1040,8 +1040,10 @@ class JastrowCauchyBinetMatrix(hk.Module):
       output_size = n_orbs * n_el * self.config.n_channels
 
       if self.config.differentiate_spins:
+        assert output_size % 2 == 0
+        # up/dn [batch x n_el(perm. inv.) x output_size]
         jastrow_up = MLP(
-          self.config.n_hidden + [output_size],
+          self.config.n_hidden + [output_size // 2],
           self.mlp_config,
           linear_out=True,
           output_bias=False,
@@ -1050,7 +1052,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
           jcb_emb.el[..., :self.n_up, :]
         )
         jastrow_dn = MLP(
-          self.config.n_hidden + [output_size],
+          self.config.n_hidden + [output_size // 2],
           self.mlp_config,
           linear_out=True,
           output_bias=False,
@@ -1058,8 +1060,11 @@ class JastrowCauchyBinetMatrix(hk.Module):
         )(
           jcb_emb.el[..., self.n_up:, :]
         )
+        jastrow = jnp.concatenate(
+          [jnp.sum(jastrow_up, axis=-2),
+           jnp.sum(jastrow_dn, axis=-2)], axis=-1
+        )
 
-        jastrow = jnp.sum(jastrow_up, axis=-2) + jnp.sum(jastrow_dn, axis=-2)
       else:
         jastrow = MLP(
           self.config.n_hidden + [output_size],
@@ -1096,7 +1101,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
       # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
       jcb_m = jnp.swapaxes(jcb_m, -3, -2)
 
-    # vmapped [n_el(perm. inv.) x n_orbs] @ [n_orbs x n_el]
+    # vmapped [batch x n_el(perm. inv.) x n_orbs] @ [batch x n_orbs x n_el]
     # mixed_mo [batch x n_channels~ndet x n_el(perm. inv.) x n_el]
     mixed_mo = jax.vmap(
       lambda w, o: w @ o, in_axes=(-3, None), out_axes=-3
