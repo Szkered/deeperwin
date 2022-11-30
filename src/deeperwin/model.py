@@ -1041,6 +1041,10 @@ class JastrowCauchyBinetMatrix(hk.Module):
 
       if self.config.differentiate_spins:
         assert output_size % 2 == 0
+
+        up_emb = jcb_emb.el[..., :self.n_up, :]
+        if not self.config.sum_after:
+          up_emb = jnp.sum(up_emb, axis=-2)
         # up/dn [batch x n_el(perm. inv.) x output_size]
         jastrow_up = MLP(
           self.config.n_hidden + [output_size // 2],
@@ -1049,8 +1053,14 @@ class JastrowCauchyBinetMatrix(hk.Module):
           output_bias=False,
           name="up"
         )(
-          jcb_emb.el[..., :self.n_up, :]
+          up_emb
         )
+        if self.config.sum_after:
+          jastrow_up = jnp.sum(jastrow_up, axis=-2)
+
+        dn_emb = jcb_emb.el[..., self.n_up:, :]
+        if not self.config.sum_after:
+          dn_emb = jnp.sum(dn_emb, axis=-2)
         jastrow_dn = MLP(
           self.config.n_hidden + [output_size // 2],
           self.mlp_config,
@@ -1058,30 +1068,35 @@ class JastrowCauchyBinetMatrix(hk.Module):
           output_bias=False,
           name="dn"
         )(
-          jcb_emb.el[..., self.n_up:, :]
+          dn_emb
         )
-        jastrow = jnp.concatenate(
-          [jnp.sum(jastrow_up, axis=-2),
-           jnp.sum(jastrow_dn, axis=-2)], axis=-1
-        )
+        if self.config.sum_after:
+          jastrow_dn = jnp.sum(jastrow_dn, axis=-2)
+
+        jastrow = jnp.concatenate([jastrow_up, jastrow_dn], axis=-1)
 
       else:
+        emb = jcb_emb.el
+        if self.config.sum_after:
+          emb = jnp.sum(emb, axis=-2)
         jastrow = MLP(
           self.config.n_hidden + [output_size],
           linear_out=True,
           output_bias=False,
           name="jcb"
         )(
-          jcb_emb.el
+          emb
         )
-        jastrow = jnp.sum(jastrow, axis=-2)
+        if self.config.sum_after:
+          jastrow = jnp.sum(jastrow, axis=-2)
 
       # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
       jcb_m = jastrow.reshape(
         jastrow.shape[:-1] + (self.config.n_channels, n_el, n_orbs)
       )
 
-    else:
+    else:  # TODO:  doesn't work yet!
+
       output_size = n_orbs * self.config.n_channels
       # [batch x  n_el(perm. inv.) x (n_orbs * n_chan)]
       jastrow = MLP(

@@ -524,6 +524,9 @@ class JCBConfig(ConfigBaseclass):
   aggregate: bool = True
   """If false, don't aggregate JCB embedding."""
 
+  sum_after: bool = True
+  """If false, sum before JCB linear layer."""
+
 
 class JCBConfigSmall(ConfigBaseclass):
   use: bool = True
