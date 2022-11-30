@@ -1027,7 +1027,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
     self.n_up = n_up
     self.n_dets = n_dets
 
-  def __call__(self, mo_matrix, jcb_emb: Embeddings):
+  def __call__(self, mo_matrix, jcb_emb: Embeddings, diff_dist):
     n_el = jcb_emb.el.shape[-2]
     n_orbs = n_el * self.n_dets  # TODO: support n_orbs directly
 
@@ -1093,6 +1093,17 @@ class JastrowCauchyBinetMatrix(hk.Module):
       )(
         jcb_emb.el
       )
+
+      # sort by dist to harmonic mean of atom locations
+      h_mean = 1.0 / jnp.mean(1.0 / diff_dist.dist_el_ion, axis=-1)
+      indicies = jnp.argsort(h_mean, axis=-1)  # [batch x n_el]
+
+      if len(indicies.shape) == 1:
+        jastrow = jastrow[indicies]
+      else:
+        jastrow = jax.vmap(
+          lambda idx, j: j[idx], in_axes=(0, 0), out_axes=0
+        )(indicies, jastrow)
 
       # [batch x n_el(perm. inv.) x n_channels~ndet x n_orbs]
       jcb_m = jastrow.reshape(
@@ -1254,7 +1265,7 @@ class Wavefunction(hk.Module):
 
     if self.config.jcb and not self.config.jastrow:
       mo_up, mo_dn = self._calculate_jcb_product(
-        mo_up, mo_dn, features, self.config.orbitals.use_full_det
+        mo_up, mo_dn, features, diff_dist, self.config.orbitals.use_full_det
       )
 
     log_psi_sqr = self._calculate_log_psi_sqr(mo_up, mo_dn)
@@ -1295,7 +1306,7 @@ class Wavefunction(hk.Module):
 
   @haiku.experimental.name_like("__call__")
   def _calculate_jcb_product(
-    self, mo_matrix_up, mo_matrix_dn, features, use_full_det
+    self, mo_matrix_up, mo_matrix_dn, features, diff_dist, use_full_det
   ):
     """Project symmetric el embedding to Jastrow-Cauchy-Binet matrix and apply to orbitals"""
     assert use_full_det == True
@@ -1304,7 +1315,7 @@ class Wavefunction(hk.Module):
     return JastrowCauchyBinetMatrix(
       self.config.jcb, self.config.mlp, self.phys_config.n_up,
       self.config.orbitals.n_determinants
-    )(mo_matrix, jcb_emb)
+    )(mo_matrix, jcb_emb, diff_dist)
 
   def get_slater_matrices(self, r, R, Z, fixed_params=None):
     fixed_params = fixed_params or {}
