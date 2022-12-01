@@ -1109,9 +1109,12 @@ class JastrowCauchyBinetMatrix(hk.Module):
         jcb_emb.el
       )
 
-      # sort by dist to harmonic mean of atom locations
+      # sort el by dist to harmonic mean of atom locations, [batch x n_el]
       h_mean = 1.0 / jnp.mean(1.0 / diff_dist.dist_el_ion, axis=-1)
-      indicies = jnp.argsort(h_mean, axis=-1)  # [batch x n_el]
+
+      indicies_up = jnp.argsort(h_mean[..., :self.n_up], axis=-1)
+      indicies_dn = jnp.argsort(h_mean[..., self.n_up:], axis=-1) + self.n_up
+      indicies = jnp.concatenate([indicies_up, indicies_dn], axis=-1)
 
       if len(indicies.shape) == 1:
         jastrow = jastrow[indicies]

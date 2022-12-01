@@ -24,7 +24,7 @@ model:
     analytic_orbitals: True
     differentiate_spins: True
     sum_after: False
-    # aggregate: False
+    aggregate: False
     emb:
       # final_linear: False
       n_hidden_one_el: 192
