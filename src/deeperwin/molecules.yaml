@@ -278,8 +278,12 @@ Ne:
   cas_n_active_electrons: 8
 P:
   E_ref: -341.257800
+  cas_n_active_orbitals: 12
+  cas_n_active_electrons: 5
 S:
   E_ref: -398.108200
+  cas_n_active_orbitals: 12
+  cas_n_active_electrons: 6
 Cl:
   E_ref: -460.147700
 Ar:
