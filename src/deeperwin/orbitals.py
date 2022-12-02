@@ -243,6 +243,7 @@ def get_baseline_solution(
     ind_orbitals = [np.arange(n_up)[None, :], np.arange(n_dn)[None, :]] if not casscf_config.only_hf else\
         [np.tile(np.arange(n_up), n_dets).reshape((-1, n_up)), np.tile(np.arange(n_dn), n_dets).reshape((-1, n_dn))]
     E_hf, E_casscf = hf.e_tot, np.nan
+
   else:
     # Run CASSCF to get excited determinants
     casscf = pyscf.mcscf.UCASSCF(

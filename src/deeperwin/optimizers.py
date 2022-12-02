@@ -234,7 +234,8 @@ def build_optimizer(
       min_damping=opt_config.min_damping,
       curvature_ema=opt_config.curvature_ema,
       auto_register_kwargs=dict(
-        graph_patterns=curvature_tags_and_blocks.GRAPH_PATTERNS
+        graph_patterns=curvature_tags_and_blocks.GRAPH_PATTERNS,
+        allow_multiple_registrations=True,
       ),
       include_norms_in_stats=True
     )

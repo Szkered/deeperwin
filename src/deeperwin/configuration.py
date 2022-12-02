@@ -482,6 +482,12 @@ class JCBConfig(ConfigBaseclass):
   aggregate: bool = True
   """If false, don't aggregate JCB embedding."""
 
+  autoregressive: bool = False
+  """If true, produce JCB matrix autoregressively."""
+
+  rnn_dim: int = 128
+  """Dimension of RNN hidden for autoregressive mode."""
+
   sum_after: bool = True
   """If false, sum before JCB linear layer."""
 
@@ -555,19 +561,6 @@ class ModelConfigDeepErwin1(ModelConfig):  # NOTE: Multiple geometry
 class ModelConfigDeepErwin4(ModelConfig):  # NOTE: Gold-Standard
   """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
   name: Literal["dpe4"] = "dpe4"
-  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
-                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
-  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
-                   EmbeddingConfigDeepErwin1,
-                   None] = EmbeddingConfigDeepErwin4()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigFermiNet()
-  jastrow: Optional[JastrowConfig] = None
-  use_el_el_cusp_correction: bool = False
-
-
-class ModelConfig1E(ModelConfig):  # NOTE: Gold-Standard with 1e only
-  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
-  name: Literal["1e"] = "1e"
   features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
                   InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,

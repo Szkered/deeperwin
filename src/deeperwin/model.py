@@ -1005,7 +1005,8 @@ class JastrowFactor(hk.Module):
       )
     else:
       jastrow = MLP(
-        self.config.n_hidden + [1],
+        up_emb,
+        dn_embdden + [1],
         linear_out=True,
         output_bias=False,
         name="mlp"
@@ -1036,7 +1037,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
     mo_matrix = jnp.swapaxes(mo_matrix, -1, -2)
     mo_matrix = mo_matrix.reshape(mo_matrix.shape[:-3] + (n_orbs, n_el))
 
-    if self.config.aggregate:
+    if not self.config.autoregressive:
       output_size = n_orbs * n_el * self.config.n_channels
 
       if self.config.differentiate_spins:
@@ -1076,6 +1077,7 @@ class JastrowCauchyBinetMatrix(hk.Module):
         jastrow = jnp.concatenate([jastrow_up, jastrow_dn], axis=-1)
 
       else:
+
         emb = jcb_emb.el
         if self.config.sum_after:
           emb = jnp.sum(emb, axis=-2)
@@ -1095,40 +1097,110 @@ class JastrowCauchyBinetMatrix(hk.Module):
         jastrow.shape[:-1] + (self.config.n_channels, n_el, n_orbs)
       )
 
-    else:  # TODO:  doesn't work yet!
+    else:
 
-      output_size = n_orbs * self.config.n_channels
-      # [batch x  n_el(perm. inv.) x (n_orbs * n_chan)]
-      jastrow = MLP(
-        self.config.n_hidden + [output_size],
-        self.mlp_config,
-        linear_out=True,
-        output_bias=False,
-        name="jcb"
-      )(
-        jcb_emb.el
-      )
+      output_size = n_el * self.config.n_channels
 
-      # sort el by dist to harmonic mean of atom locations, [batch x n_el]
-      h_mean = 1.0 / jnp.mean(1.0 / diff_dist.dist_el_ion, axis=-1)
+      if self.config.aggregate:
 
-      indicies_up = jnp.argsort(h_mean[..., :self.n_up], axis=-1)
-      indicies_dn = jnp.argsort(h_mean[..., self.n_up:], axis=-1) + self.n_up
-      indicies = jnp.concatenate([indicies_up, indicies_dn], axis=-1)
+        # prepare context [batch x emb_dim*2]
+        if self.config.differentiate_spins:
+          up_emb = jcb_emb.el[..., :self.n_up, :]
+          if not self.config.sum_after:
+            up_emb = jnp.sum(up_emb, axis=-2)
+          dn_emb = jcb_emb.el[..., self.n_up:, :]
+          if not self.config.sum_after:
+            dn_emb = jnp.sum(dn_emb, axis=-2)
+          context = jnp.concatenate([up_emb, dn_emb], axis=-1)
+        else:
+          context = jnp.sum(emb, axis=-2)
 
-      if len(indicies.shape) == 1:
-        jastrow = jastrow[indicies]
+        if len(context.shape) > 1:
+          batch_size = context.shape[-2]
+          no_batch = False
+        else:
+          batch_size = 1
+          context = context[None, ...]
+          no_batch = True
+
+        emb_size = context.shape[-1]
+        context = context[None, ...]  # add seq dim [1 x batch x emb_dim*2]
+
+        core = hk.LSTM(self.config.rnn_dim)
+        dense = hk.Linear(emb_size)
+
+        state = core.initial_state(batch_size)
+        context_outs, state = hk.dynamic_unroll(core, context, state)
+        context_outs = hk.BatchApply(dense)(context_outs)
+
+        # Now, unroll one step at a time using the running recurrent state.
+        ar_outs = []
+        x = context_outs[-1]
+        for _ in range(n_orbs - 1):
+          x, state = core(x, state)
+          x = dense(x)
+          ar_outs.append(x)
+
+        # [n_orbs x batch x emb*2]
+        auto_out = jnp.concatenate([context_outs, jnp.stack(ar_outs)])
+        # [batch x n_orbs x emb*2]
+        auto_out = jnp.swapaxes(auto_out, 0, 1)
+
+        if no_batch:  # remove batch dim
+          auto_out = auto_out[0]
+
+        # [batch x n_orbs x (n_el * n_chan)]
+        jastrow = MLP(
+          self.config.n_hidden + [output_size],
+          self.mlp_config,
+          linear_out=True,
+          output_bias=False,
+          name="proj"
+        )(
+          auto_out
+        )
+
+        # [batch x n_orbs x n_el x n_channels~ndet]
+        jcb_m = jastrow.reshape(
+          jastrow.shape[:-1] + (n_el, self.config.n_channels)
+        )
+
+        # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
+        jcb_m = jnp.swapaxes(jcb_m, -3, -1)
+
       else:
-        jastrow = jax.vmap(
-          lambda idx, j: j[idx], in_axes=(0, 0), out_axes=0
-        )(indicies, jastrow)
 
-      # [batch x n_el(perm. inv.) x n_channels~ndet x n_orbs]
-      jcb_m = jastrow.reshape(
-        jastrow.shape[:-1] + (self.config.n_channels, n_orbs)
-      )
-      # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
-      jcb_m = jnp.swapaxes(jcb_m, -3, -2)
+        # [batch x  n_el(perm. inv.) x (n_orbs * n_chan)]
+        jastrow = MLP(
+          self.config.n_hidden + [output_size],
+          self.mlp_config,
+          linear_out=True,
+          output_bias=False,
+          name="jcb"
+        )(
+          jcb_emb.el
+        )
+
+        # sort el by dist to harmonic mean of atom locations, [batch x n_el]
+        h_mean = 1.0 / jnp.mean(1.0 / diff_dist.dist_el_ion, axis=-1)
+
+        indicies_up = jnp.argsort(h_mean[..., :self.n_up], axis=-1)
+        indicies_dn = jnp.argsort(h_mean[..., self.n_up:], axis=-1) + self.n_up
+        indicies = jnp.concatenate([indicies_up, indicies_dn], axis=-1)
+
+        if len(indicies.shape) == 1:
+          jastrow = jastrow[indicies]
+        else:
+          jastrow = jax.vmap(
+            lambda idx, j: j[idx], in_axes=(0, 0), out_axes=0
+          )(indicies, jastrow)
+
+        # [batch x n_el(perm. inv.) x n_channels~ndet x n_orbs]
+        jcb_m = jastrow.reshape(
+          jastrow.shape[:-1] + (self.config.n_channels, n_orbs)
+        )
+        # [batch x n_channels~ndet x n_el(perm. inv.) x n_orbs]
+        jcb_m = jnp.swapaxes(jcb_m, -3, -2)
 
     # vmapped [batch x n_el(perm. inv.) x n_orbs] @ [batch x n_orbs x n_el]
     # mixed_mo [batch x n_channels~ndet x n_el(perm. inv.) x n_el]
