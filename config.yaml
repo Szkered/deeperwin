@@ -8,9 +8,8 @@ pre_training:
 
 model:
   # name: 1e
-  name: jcb
-  # name: jcbs
-  # name: jcb2e
+  # name: jcb
+  name: anajcb
   # name: nc
   # name: jcbnc
   # name: dpe4
@@ -25,10 +24,10 @@ model:
     differentiate_spins: True
     sum_after: False
     aggregate: True
-    autoregressive: True
+    autoregressive: False
     emb:
       # final_linear: False
-      n_hidden_one_el: 64
+      n_hidden_one_el: 256
 
 
   # nonlinear_coupling:
@@ -36,18 +35,19 @@ model:
   #   activation: tanh
 
   orbitals:
-    n_determinants: 8
+    n_determinants: 2
 
-  # embedding:
-  #   n_hidden_one_el: 512
+  embedding:
+    no_2e: False
+    n_hidden_one_el: 64
 
 optimization:
 #   kinetic: fd
 #   fd_eps: 1e-4
 #   adapt_var_ema_alpha: 0.9
 
-  optimizer:
-    name: adam
+  # optimizer:
+  #   name: adam
     # damping: 4e-3
 
   mcmc:

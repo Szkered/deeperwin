@@ -918,7 +918,24 @@ class BaselineOrbitals(hk.Module):
 
   def _calc_shift(self, x, pair_embedding, diff, dist, name="el"):
     n_particles = diff.shape[-2]
+    n_dn = n_particles-self.n_up
+    # [batch x n_el x n_el x hidden]
     x_tiled = jnp.tile(jnp.expand_dims(x, axis=-2), (n_particles, 1))
+
+    if isinstance(pair_embedding, list):
+      # recover dist matrix
+      # emb[0]: uu+dd, emb[1]: ud+du
+      batch_dims = x.shape[:-2]
+      num_uu = self.n_up*self.n_up
+      h_uu = pair_embedding[0][..., :num_uu, :].reshape(batch_dims + (self.n_up , self.n_up, -1))
+      h_dd = pair_embedding[0][..., num_uu:,:].reshape(batch_dims + (n_dn, n_dn, -1))
+      num_ud = self.n_up*n_dn
+      h_ud = pair_embedding[1][..., :num_ud, :].reshape(batch_dims + (self.n_up, n_dn, -1))
+      h_du = pair_embedding[1][..., num_ud:,:].reshape(batch_dims + (n_dn, self.n_up, -1))
+      hu = jnp.concatenate([h_uu, h_ud], axis=-2)
+      hd = jnp.concatenate([h_du, h_dd], axis=-2)
+      pair_embedding = jnp.concatenate([hu, hd], axis=-3)
+
     features = jnp.concatenate([x_tiled, pair_embedding], axis=-1)
     shift = MLP(
       self.config.n_hidden_bf_shift + [1],

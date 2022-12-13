@@ -400,7 +400,7 @@ class BaselineOrbitalsConfig(ConfigBaseclass):
   n_hidden_bf_shift: List[int] = [40, 40]
   """List of ints, specifying the number of hidden units per layer in the backflow-shift-network. If not provided, the width and depth set by *net_width* and *net_depth* are used."""
 
-  use_bf_factor: bool = True
+  use_bf_factor: bool = False
   """Enable the backflow-factor, i.e. multiply the CASSCF orbitals with the output of a neural network"""
 
   use_bf_factor_bias: bool = True
@@ -411,7 +411,6 @@ class BaselineOrbitalsConfig(ConfigBaseclass):
 
   output_shift: Literal[1, 3] = 1
   """Dimensionality of the output for the backflow-shift network. Can either be scalar or 3-dimensional. Note that only a scalar output ensures rotational equivariance."""
-
 
 class OrbitalsConfig(ConfigBaseclass):
   baseline_orbitals: Optional[BaselineOrbitalsConfig] = None
@@ -438,6 +437,13 @@ class OrbitalsConfigFermiNet(OrbitalsConfig):
 class OrbitalsConfigJCB(OrbitalsConfig):
   baseline_orbitals: Optional[BaselineOrbitalsConfig] = None
   envelope_orbitals: Optional[EnvelopeOrbitalsConfig] = EnvelopeOrbitalsConfig()
+  n_determinants = 16
+  use_full_det = True
+
+
+class OrbitalsConfigAnalyticJCB(OrbitalsConfig):
+  baseline_orbitals: Optional[BaselineOrbitalsConfig] = BaselineOrbitalsConfig()
+  envelope_orbitals: Optional[EnvelopeOrbitalsConfig] = None
   n_determinants = 16
   use_full_det = True
 
@@ -579,7 +585,20 @@ class ModelConfigJCB(ModelConfig):  # NOTE: JCB with 1e only
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
                    EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
                    None] = EmbeddingConfigDESmallNo2e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
+  orbitals: OrbitalsConfigJCB = OrbitalsConfigJCB()
+  jastrow: Optional[JastrowConfig] = None
+  jcb: Optional[JCBConfig] = JCBConfig()
+  use_el_el_cusp_correction: bool = False
+
+class ModelConfigAnalyticJCB(ModelConfig):  # NOTE: JCB with 1e only
+  """DO NOT INTRODUCE NEW FIELDS HERE. This class is only used to provide alternative defaults"""
+  name: Literal["anajcb"] = "anajcb"
+  features: Union[InputFeatureConfigDPE4, InputFeatureConfigFermiNet,
+                  InputFeatureConfigDPE1] = InputFeatureConfigDPE4()
+  embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
+                   EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
+                   None] = EmbeddingConfigDESmallNo2e()
+  orbitals: OrbitalsConfigAnalyticJCB = OrbitalsConfigAnalyticJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: Optional[JCBConfig] = JCBConfig()
   use_el_el_cusp_correction: bool = False
@@ -607,7 +626,7 @@ class ModelConfigJCBNC(ModelConfig):  # NOTE: JCB+NC with 1e only
   embedding: Union[EmbeddingConfigDeepErwin4, EmbeddingConfigFermiNet,
                    EmbeddingConfigDeepErwin1, EmbeddingConfigDESmallNo2e,
                    None] = EmbeddingConfigDESmallNo2e()
-  orbitals: OrbitalsConfigFermiNet = OrbitalsConfigJCB()
+  orbitals: OrbitalsConfigJCB = OrbitalsConfigJCB()
   jastrow: Optional[JastrowConfig] = None
   jcb: Optional[JCBConfig] = JCBConfig()
   nonlinear_coupling: Optional[NCConfig] = NCConfig()
@@ -1358,7 +1377,7 @@ class Configuration(ConfigBaseclass):
   """The evaluation of the wavefunction (after optimization)"""
 
   model: Union[ModelConfigDeepErwin4, ModelConfigFermiNet,
-               ModelConfigDeepErwin1, ModelConfigJCB, ModelConfigNC,
+               ModelConfigDeepErwin1, ModelConfigJCB, ModelConfigAnalyticJCB, ModelConfigNC,
                ModelConfigJCBNC] = ModelConfigDeepErwin4()
   """The actual wavefunction model mapping electron coordinates to psi"""
 
